@@ -1,0 +1,19 @@
+{
+  "protocol": "http://www.alphadevs.dev/healthxprotocol",
+  "published": true,
+  "types": {
+    "healthrecord": {
+      "schema": "http://www.alphadevs.dev/healthxprotocol/healthrecord",
+      "dataFormats": ["application/json"]
+    }
+  },
+  "structure": {
+    "healthrecord": {
+      "$actions": [
+        { "who": "anyone", "can": "write" },
+        { "who": "author", "of": "healthrecord", "can": "read" },
+        { "who": "recipient", "of": "healthrecord", "can": "read" }
+      ]
+    }
+  }
+}

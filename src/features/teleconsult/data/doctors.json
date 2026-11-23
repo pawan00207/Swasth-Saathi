@@ -1,0 +1,8 @@
+[
+{"id":"dr-meera","name":"Dr. Meera Sharma","specialization":"General Medicine","languages":["Hindi","English"],"availability":["09:00","11:30","16:00"],"modes":["Video","Audio","Chat"],"signLanguage":false,"wheelchairClinic":true,"demo":true},
+{"id":"dr-rahul","name":"Dr. Rahul Nair","specialization":"Pulmonology","languages":["English","Malayalam","Hindi"],"availability":["10:00","13:30","18:00"],"modes":["Video","Audio"],"signLanguage":true,"wheelchairClinic":true,"demo":true},
+{"id":"dr-ananya","name":"Dr. Ananya Sen","specialization":"Neurology","languages":["Bengali","Hindi","English"],"availability":["09:30","15:00","17:30"],"modes":["Video","Chat"],"signLanguage":true,"wheelchairClinic":true,"demo":true},
+{"id":"dr-karthik","name":"Dr. Karthik Iyer","specialization":"Cardiology","languages":["Tamil","English","Hindi"],"availability":["08:30","12:00","19:00"],"modes":["Video","Audio","Chat"],"signLanguage":false,"wheelchairClinic":true,"demo":true},
+{"id":"dr-fatima","name":"Dr. Fatima Khan","specialization":"Rehabilitation Medicine","languages":["Urdu","Hindi","English"],"availability":["10:30","14:30","17:00"],"modes":["Video","Audio","Chat"],"signLanguage":true,"wheelchairClinic":true,"demo":true},
+{"id":"dr-arvind","name":"Dr. Arvind Patel","specialization":"Pediatrics","languages":["Gujarati","Hindi","English"],"availability":["09:00","12:30","16:30"],"modes":["Video","Audio"],"signLanguage":false,"wheelchairClinic":true,"demo":true}
+]
