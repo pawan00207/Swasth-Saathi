@@ -1,11 +1,12 @@
 import Head from "next/head";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowDown, ArrowUpRight, CalendarDays, FileHeart, HeartHandshake, Building2, MapPin, Receipt, Video,
 } from "lucide-react";
 import { useI18n } from "@/components/I18nProvider";
+import BlurText from "@/components/BlurText";
 import SelectType from "@/components/form/selectType";
 import EnterDetails from "@/components/form/EnterDetails";
 
@@ -20,57 +21,28 @@ const serviceGroups = [
   {
     title: "Find care and support",
     services: [
-      [HeartHandshake, "/schemes", "nav.schemes", "Explore government schemes and check eligibility"],
-      [MapPin, "/route", "nav.route", "Plan an accessible route to a hospital"],
-      [Building2, "/beds", "nav.beds", "Check bed listings and accessibility details"],
-      [Video, "/consult", "nav.consult", "Find a doctor and explore video consultations"],
+      [HeartHandshake, "/schemes", "nav.schemes", "home.schemes"],
+      [MapPin, "/route", "nav.route", "home.route"],
+      [Building2, "/beds", "nav.beds", "home.beds"],
+      [Video, "/consult", "nav.consult", "home.consult"],
     ],
   },
   {
     title: "More ways to manage care",
     services: [
-      [FileHeart, "/records", "nav.myReports", "Keep medical reports ready to share"],
-      [Receipt, "/billing", "nav.billing", "Review treatment bills and receipts"],
-      [CalendarDays, "/appointments", "nav.appointments", "View and manage appointments"],
+      [FileHeart, "/records", "nav.myReports", "home.reports"],
+      [Receipt, "/billing", "nav.billing", "home.billing"],
+      [CalendarDays, "/appointments", "nav.appointments", "home.appointments"],
     ],
   },
 ];
 
 export default function Home() {
-  const { t } = useI18n();
+  const { t, language, formatCurrency } = useI18n();
   const [type, setType] = useState("");
   const [details, setDetails] = useState({ name: "", year: "" });
   const [step, setStep] = useState(0);
   const setupHeading = useRef(null);
-
-  const scrollInstance = useRef(null);
-
-  useEffect(() => () => scrollInstance.current?.destroy(), []);
-
-  async function jumpToSection(event) {
-    if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const hash = event.currentTarget.hash;
-    const target = document.querySelector(hash);
-    if (!target) return;
-    event.preventDefault();
-    try {
-      const { default: Lenis } = await import("lenis");
-      if (!target.isConnected) return;
-      scrollInstance.current?.destroy();
-      const lenis = new Lenis({ autoRaf: true, smoothWheel: false });
-      scrollInstance.current = lenis;
-      history.pushState(history.state, "", hash);
-      target.focus({ preventScroll: true });
-      lenis.scrollTo(target, {
-        offset: -(document.querySelector(".site-header")?.offsetHeight || 0),
-        duration: 0.65,
-        onComplete: () => lenis.destroy(),
-      });
-    } catch {
-      location.hash = hash;
-    }
-  }
 
   function changeStep(nextStep) {
     setStep(nextStep);
@@ -95,57 +67,42 @@ export default function Home() {
         <meta name="site-kind" content="software" />
       </Head>
 
-      <section className="home-hero hero" aria-labelledby="home-title" data-enter>
-        <div className="site-container wrap home-hero-grid">
-          <div className="home-intro">
-            <h1 id="home-title">Care, clarity, and support for every <span className="journey-mark">health journey.</span></h1>
-            <p className="home-lede">{homeDescription}</p>
-            <div className="home-actions">
-              <a className="site-button site-button-primary" href="#care-services" onClick={jumpToSection}>Explore care services <ArrowDown size={16} aria-hidden="true" /></a>
-              <a className="site-button site-button-secondary" href="#record-setup" onClick={jumpToSection}>Set up records</a>
-            </div>
-          </div>
-          <picture className="home-photo" data-visual>
-            <source media="(max-width: 47.99rem)" srcSet="/images/care-reception-small.webp" />
-            <img src="/images/care-reception.webp" width="1536" height="1024" fetchpriority="high"
-              alt="Two women look at a phone together in a clinic waiting area" />
+      <section className="care-front" aria-labelledby="home-title">
+        <div className="site-container care-front-grid">
+          <picture className="care-front-portrait" aria-hidden="true">
+            <source media="(min-width: 75rem)" srcSet="/images/care-reception.webp" />
+            <img src="/images/care-reception-small.webp" alt="" width="768" height="512" fetchpriority="high" />
           </picture>
-          <nav className="hero-shortcuts" aria-label="Care shortcuts">
-            {serviceGroups[0].services.filter(([, href]) => href !== "/route").map(([Icon, href, label]) => (
+          <div className="care-front-copy">
+            <h1 id="home-title"><span>{t("home.find")}</span><em><BlurText key={language} text={t("home.visit")} trigger="load" delay={55} blur={4} distance={10} /></em></h1>
+            <p>{t("home.intro")}</p>
+            <Link href="/records" className="care-record-link">{t("home.open")} <ArrowUpRight size={17} aria-hidden="true" /></Link>
+          </div>
+          <nav className="care-finder" aria-labelledby="care-finder-title">
+            <h2 id="care-finder-title">{t("home.finder")}</h2>
+            {serviceGroups[0].services.map(([Icon, href, label, description]) => (
               <Link key={href} href={href} prefetch={false}>
-                <Icon size={20} strokeWidth={1.6} aria-hidden="true" />
-                {t(label)}
-                <ArrowUpRight size={16} aria-hidden="true" />
+                <span className="finder-icon"><Icon size={23} strokeWidth={1.6} aria-hidden="true" /></span>
+                <span><strong>{t(label)}</strong><small>{t(description)}</small></span>
+                <ArrowUpRight size={18} aria-hidden="true" />
               </Link>
             ))}
           </nav>
         </div>
       </section>
-
-      <section className="home-services" id="care-services" aria-labelledby="care-services-title" tabIndex={-1}>
-        <div className="site-container wrap home-directory">
-          <div className="home-directory-intro">
-            <h2 id="care-services-title" className="home-section-title">Healthcare services</h2>
-            <p>Find support for a hospital visit or manage records, bills, and appointments.</p>
-          </div>
-          <div className="home-service-groups">
-            {serviceGroups.map(({ title, services }) => (
-              <section key={title} className="home-service-group">
-                <h3>{title}</h3>
-                <ul className="home-service-list">
-                  {services.map(([Icon, href, label, description]) => (
-                    <li key={href}>
-                      <Link prefetch={false} className="home-service-link" href={href}>
-                        <Icon size={21} strokeWidth={1.6} aria-hidden="true" />
-                        <span><strong>{t(label)}</strong><small>{description}</small></span>
-                        <ArrowUpRight size={16} aria-hidden="true" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+      <section className="care-workspace site-container" id="care-services" aria-labelledby="workspace-title">
+        <div className="care-workspace-heading">
+          <h2 id="workspace-title">{t("home.manage")}</h2>
+          <a href="#record-setup" className="home-text-link">{t("home.setup")} <ArrowDown size={15} aria-hidden="true" /></a>
+        </div>
+        <div className="care-tools">
+          {serviceGroups[1].services.map(([Icon, href, label, description]) => (
+            <Link key={href} href={href} prefetch={false}>
+              <Icon aria-hidden="true" size={26} strokeWidth={1.5} />
+              <strong>{t(label)}</strong><small>{t(description)}</small>
+              <ArrowUpRight aria-hidden="true" size={18} />
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -154,6 +111,14 @@ export default function Home() {
           <div>
             <h2 id="record-setup" ref={setupHeading} tabIndex={-1} className="home-section-title">Set up your record workspace</h2>
             <p>Create a record identity as an individual or as an organization that issues health records.</p>
+            <figure className="wallet-stage">
+              <figcaption>{t("home.sample")}</figcaption>
+              <div className="wallet-stage-window">
+                <div className="wallet-stage-title"><Receipt size={20} aria-hidden="true" />{t("nav.billing")}</div>
+                <div className="wallet-stage-row"><span>{t("wallet.status.paid")}</span><strong>{formatCurrency(850)}</strong></div>
+                <div className="wallet-stage-row"><span>{t("wallet.status.pending")}</span><strong>{formatCurrency(250)}</strong></div>
+              </div>
+            </figure>
             <Link href="/dashboard" className="home-text-link">Open the record dashboard</Link>
           </div>
           <div className="home-setup-panel">

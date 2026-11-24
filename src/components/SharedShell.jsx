@@ -27,6 +27,51 @@ const primaryPaths = new Set(["/schemes", "/records", "/billing", "/beds"]);
 
 export default function SharedShell({ children, isHome = false }) {
   const { language, setLanguage, t, languages } = useI18n();
+  useEffect(() => {
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let controller;
+    let disposed = false;
+
+    async function syncMotion() {
+      controller?.destroy();
+      controller = undefined;
+      if (motion.matches) return;
+      const { default: Lenis } = await import("lenis");
+      if (disposed || motion.matches || controller) return;
+      controller = new Lenis({
+        autoRaf: true,
+        lerp: 0.14,
+        syncTouch: false,
+        allowNestedScroll: true,
+        stopInertiaOnNavigate: true,
+        prevent: (element) => element.matches('[role="dialog"], .leaflet-container'),
+      });
+    }
+
+    function followSection(event) {
+      const link = event.target.closest?.(".home-actions a[href^='#']");
+      if (!controller || !link || event.defaultPrevented || event.button ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = document.getElementById(link.hash.slice(1));
+      if (!target) return;
+      event.preventDefault();
+      if (location.hash !== link.hash) history.pushState(history.state, "", link.hash);
+      target.focus({ preventScroll: true });
+      controller.scrollTo(target, { duration: 0.65,
+        offset: -(document.querySelector(".site-header")?.offsetHeight || 0) });
+    }
+
+    syncMotion();
+    motion.addEventListener("change", syncMotion);
+    document.addEventListener("click", followSection);
+    return () => {
+      disposed = true;
+      controller?.destroy();
+      motion.removeEventListener("change", syncMotion);
+      document.removeEventListener("click", followSection);
+    };
+  }, []);
+
   const [sounds, setSounds] = useState(false);
   const [role, setRole] = useState("Patient");
   const [showStatus, setShowStatus] = useState(false);
@@ -53,6 +98,9 @@ export default function SharedShell({ children, isHome = false }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRoot = useRef(null);
+  const [query, setQuery] = useState("");
+  useEffect(() => { if (!menuOpen) setQuery(""); }, [menuOpen]);
+  const matches = [...navItems, ["shell.dashboard", "/dashboard"]].filter(([key]) => t(key).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const menuButton = useRef(null);
 
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -143,15 +191,16 @@ export default function SharedShell({ children, isHome = false }) {
                 <span>Menu</span>
               </button>
               <div className="site-menu-panel" id="site-service-menu" hidden={!menuOpen}>
-                <nav aria-label="All services" className="site-menu-links">
-                  {navItems.map(([key, href]) => (
+                <input className="service-search" type="search" aria-label={t("shell.serviceSearch")} placeholder={t("shell.serviceSearch")} value={query} onChange={(event) => setQuery(event.target.value)} />
+                {!matches.length && <p role="status">{t("shell.noServices")}</p>}
+                <nav aria-label={t("shell.serviceSearch")} className="site-menu-links">
+                  {matches.map(([key, href]) => (
                     <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}
                       onClick={() => setMenuOpen(false)}>
                       {t(key)}
                     </Link>
                   ))}
-                  <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}
-                    onClick={() => setMenuOpen(false)}>Record dashboard</Link>
+
                 </nav>
                 <label className="site-demo-role">
                   <span>Interface sounds</span>
@@ -193,9 +242,15 @@ export default function SharedShell({ children, isHome = false }) {
       <footer className="site-footer">
         <div className="site-container wrap site-footer-row">
           <div>
-            <span className="site-footer-title">{t("appName")}</span>
+            <Link href="/"><img width="212" height="57" src="/images/swasth-saathi-logo.webp" alt={t("appName")} /></Link>
             <p>{t("shell.footerDisclaimer")}</p>
           </div>
+          {[["home.find", ["/schemes", "/route", "/beds", "/consult"]], ["home.manage", ["/records", "/billing", "/appointments", "/auth"]]].map(([title, routes]) => (
+            <nav key={title} className="footer-service-links" aria-label={t(title)}>
+              <h2>{t(title)}</h2>
+              {routes.map((href) => <Link key={href} href={href}>{t(navItems.find(([, path]) => path === href)[0])}</Link>)}
+            </nav>
+          ))}
           <button type="button" className="site-text-button" aria-expanded={showStatus}
             aria-controls="integration-status" onClick={() => setShowStatus((visible) => !visible)}>
             {showStatus ? t("shell.hideStatus") : t("shell.viewStatus")}
