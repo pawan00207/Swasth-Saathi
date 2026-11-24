@@ -19,7 +19,12 @@ export function getTelegramConfig() {
   return {
     botToken: (process.env.TELEGRAM_BOT_TOKEN || "").trim(),
     chatId: (process.env.TELEGRAM_CHAT_ID || "").trim(),
-    emergencyChatId: (process.env.TELEGRAM_EMERGENCY_CHAT_ID || process.env.TELEGRAM_CHAT_ID || "").trim(),
+    emergencyChatId: (
+      process.env.TELEGRAM_EMERGENCY_CHAT_ID ||
+      process.env.TELEGRAM_SOS_CHAT_ID ||
+      process.env.TELEGRAM_CHAT_ID ||
+      ""
+    ).trim(),
   };
 }
 

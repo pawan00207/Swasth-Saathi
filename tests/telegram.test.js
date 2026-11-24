@@ -17,6 +17,7 @@ describe("Telegram Notification Service", () => {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
     TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
     TELEGRAM_EMERGENCY_CHAT_ID: process.env.TELEGRAM_EMERGENCY_CHAT_ID,
+    TELEGRAM_SOS_CHAT_ID: process.env.TELEGRAM_SOS_CHAT_ID,
   };
   const originalFetch = globalThis.fetch;
 
@@ -25,6 +26,7 @@ describe("Telegram Notification Service", () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
     delete process.env.TELEGRAM_CHAT_ID;
     delete process.env.TELEGRAM_EMERGENCY_CHAT_ID;
+    delete process.env.TELEGRAM_SOS_CHAT_ID;
   });
 
   afterEach(() => {
@@ -44,6 +46,11 @@ describe("Telegram Notification Service", () => {
       process.env.TELEGRAM_EMERGENCY_CHAT_ID = originalEnv.TELEGRAM_EMERGENCY_CHAT_ID;
     } else {
       delete process.env.TELEGRAM_EMERGENCY_CHAT_ID;
+    }
+    if (originalEnv.TELEGRAM_SOS_CHAT_ID !== undefined) {
+      process.env.TELEGRAM_SOS_CHAT_ID = originalEnv.TELEGRAM_SOS_CHAT_ID;
+    } else {
+      delete process.env.TELEGRAM_SOS_CHAT_ID;
     }
   });
 
@@ -152,6 +159,26 @@ describe("Telegram Notification Service", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/sendMessage");
     expect(duplicate.deduplicated).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses TELEGRAM_SOS_CHAT_ID for emergency alerts when no other SOS chat is set", async () => {
+    process.env.TELEGRAM_BOT_TOKEN = "unit-test-token-value";
+    process.env.TELEGRAM_SOS_CHAT_ID = "8435808976";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, result: { message_id: 779 } }),
+    }));
+    globalThis.fetch = fetchMock;
+
+    expect(isTelegramConfigured({ emergency: true })).toBe(true);
+    const result = await notifySosAlertTelegram({
+      sosEvent: { id: "sos-chat-alias-test", status: "sent", isDrill: true },
+      locationShared: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).chat_id).toBe("8435808976");
   });
 
   it("sends via Telegram Bot API sendMessage and prevents duplicate notifications", async () => {
