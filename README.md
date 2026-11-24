@@ -56,7 +56,7 @@ Open `http://localhost:3000/admin/setup-status` to check provider connectivity (
 
 ### 3. Telegram Alerts
 1. Create a Telegram bot with BotFather and add it to the group/chat that should receive alerts.
-2. Obtain the destination chat ID from Telegram, then set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local`. Do not use a `NEXT_PUBLIC_` variable for either value. Set `TELEGRAM_SOS_CHAT_ID` or `TELEGRAM_EMERGENCY_CHAT_ID` to route SOS alerts and hospital pre-alerts to a separate chat; if neither is set, they use `TELEGRAM_CHAT_ID`.
+2. Obtain the destination chat ID from Telegram, then set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local`. The bot token also accepts `TELEGRAM_CHAT_API` or the legacy `telegram_chat_api` name. Do not use a `NEXT_PUBLIC_` variable for the token. Set `TELEGRAM_SOS_CHAT_ID` or `TELEGRAM_EMERGENCY_CHAT_ID` to route SOS alerts and hospital pre-alerts to a separate chat; if neither is set, they use `TELEGRAM_CHAT_ID`.
 3. Restart the app and use **Send test Telegram** on `/admin/setup-status`. Bed request alerts contain the request ID, hospital, bed type, status, and timestamp; SOS hospital pre-alerts include the SOS ID, hospital, bed type, and timestamp. These alerts exclude patient details.
 
 ### 4. WhatsApp Bot: Twilio Sandbox (Quick Start) & Meta Cloud API Swap

@@ -17,7 +17,12 @@ function pruneDedupeStore(store, now = Date.now()) {
 
 export function getTelegramConfig() {
   return {
-    botToken: (process.env.TELEGRAM_BOT_TOKEN || "").trim(),
+    botToken: (
+      process.env.TELEGRAM_BOT_TOKEN ||
+      process.env.TELEGRAM_CHAT_API ||
+      process.env.telegram_chat_api ||
+      ""
+    ).trim(),
     chatId: (process.env.TELEGRAM_CHAT_ID || "").trim(),
     emergencyChatId: (
       process.env.TELEGRAM_EMERGENCY_CHAT_ID ||

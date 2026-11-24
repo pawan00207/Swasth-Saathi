@@ -15,6 +15,8 @@ import {
 describe("Telegram Notification Service", () => {
   const originalEnv = {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_API: process.env.TELEGRAM_CHAT_API,
+    telegram_chat_api: process.env.telegram_chat_api,
     TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
     TELEGRAM_EMERGENCY_CHAT_ID: process.env.TELEGRAM_EMERGENCY_CHAT_ID,
     TELEGRAM_SOS_CHAT_ID: process.env.TELEGRAM_SOS_CHAT_ID,
@@ -24,6 +26,8 @@ describe("Telegram Notification Service", () => {
   beforeEach(() => {
     clearTelegramDedupeForTests();
     delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_API;
+    delete process.env.telegram_chat_api;
     delete process.env.TELEGRAM_CHAT_ID;
     delete process.env.TELEGRAM_EMERGENCY_CHAT_ID;
     delete process.env.TELEGRAM_SOS_CHAT_ID;
@@ -36,6 +40,16 @@ describe("Telegram Notification Service", () => {
       process.env.TELEGRAM_BOT_TOKEN = originalEnv.TELEGRAM_BOT_TOKEN;
     } else {
       delete process.env.TELEGRAM_BOT_TOKEN;
+    }
+    if (originalEnv.TELEGRAM_CHAT_API !== undefined) {
+      process.env.TELEGRAM_CHAT_API = originalEnv.TELEGRAM_CHAT_API;
+    } else {
+      delete process.env.TELEGRAM_CHAT_API;
+    }
+    if (originalEnv.telegram_chat_api !== undefined) {
+      process.env.telegram_chat_api = originalEnv.telegram_chat_api;
+    } else {
+      delete process.env.telegram_chat_api;
     }
     if (originalEnv.TELEGRAM_CHAT_ID !== undefined) {
       process.env.TELEGRAM_CHAT_ID = originalEnv.TELEGRAM_CHAT_ID;
@@ -174,6 +188,26 @@ describe("Telegram Notification Service", () => {
     expect(isTelegramConfigured({ emergency: true })).toBe(true);
     const result = await notifySosAlertTelegram({
       sosEvent: { id: "sos-chat-alias-test", status: "sent", isDrill: true },
+      locationShared: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).chat_id).toBe("8435808976");
+  });
+
+  it("accepts the existing lowercase Netlify bot-token variable name", async () => {
+    process.env.telegram_chat_api = "unit-test-token-value";
+    process.env.TELEGRAM_SOS_CHAT_ID = "8435808976";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, result: { message_id: 780 } }),
+    }));
+    globalThis.fetch = fetchMock;
+
+    expect(isTelegramConfigured({ emergency: true })).toBe(true);
+    const result = await notifySosAlertTelegram({
+      sosEvent: { id: "sos-netlify-variable-alias-test", status: "sent", isDrill: true },
       locationShared: false,
     });
 
