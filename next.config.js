@@ -4,6 +4,7 @@ const webpack = require('webpack');
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
 
   webpack: (config, { isServer, buildId, dev, webpack }) => {
     config.resolve.alias = {
