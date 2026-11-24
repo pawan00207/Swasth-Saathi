@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  userId           String              @id
+  displayName      String              @default("")
+  role             String              @default("patient")
+  hospitalId       String?
+  emergencyContact String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  hospital         Hospital?           @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  savedSchemes     SavedScheme[]
+  reports          Report[]
+  shareTokens      ReportShareToken[]  @relation("ShareOwner")
+  appointments     Appointment[]       @relation("AppointmentPatient")
+  bedRequests      BedRequest[]
+  invoices         Invoice[]           @relation("InvoicePatient")
+  bedAudits        BedInventoryAudit[] @relation("BedAuditActor")
+}
+
+model Scheme {
+  id                 String        @id
+  name               String
+  category           String        @default("health")
+  state              String        @default("All India")
+  minAge             Int?
+  maxAge             Int?
+  incomeLimit        Decimal?
+  disabilityRequired String[]      @default([])
+  benefits           String        @default("")
+  documents          String[]      @default([])
+  applyUrl           String?
+  sourceUrl          String?
+  updatedAt          DateTime      @updatedAt
+  savedBy            SavedScheme[]
+}
+
+model SavedScheme {
+  userId    String
+  schemeId  String
+  createdAt DateTime @default(now())
+  user      Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  scheme    Scheme   @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, schemeId])
+}
+
+model Hospital {
+  id                        String                    @id @default(cuid())
+  name                      String
+  city                      String
+  state                     String?
+  address                   String?
+  latitude                  Float?
+  longitude                 Float?
+  speciality                String[]                  @default([])
+  emergency                 Boolean                   @default(false)
+  demo                      Boolean                   @default(false)
+  ramp                      Boolean?
+  elevator                  Boolean?
+  wheelchairEntrance        Boolean?
+  accessibleParking         Boolean?
+  accessibilitySource       String                    @default("osm")
+  accessibilityLastVerified DateTime?
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  admins                    Profile[]
+  bedInventory              BedInventory[]
+  bedRequests               BedRequest[]
+  bedAudits                 BedInventoryAudit[]
+  appointments              Appointment[]
+  invoices                  Invoice[]
+  accessibilityCorrections  AccessibilityCorrection[]
+
+  @@unique([name, city])
+}
+
+model BedInventory {
+  id         String   @id @default(cuid())
+  hospitalId String
+  bedType    String
+  total      Int      @default(0)
+  available  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, bedType])
+}
+
+model BedInventoryAudit {
+  id         String   @id @default(cuid())
+  hospitalId String
+  actorId    String
+  changes    Json
+  createdAt  DateTime @default(now())
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  actor      Profile  @relation("BedAuditActor", fields: [actorId], references: [userId], onDelete: Restrict)
+
+  @@index([hospitalId, createdAt])
+}
+
+model BedRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  hospitalId   String
+  bedType      String
+  patientName  String
+  patientPhone String
+  urgency      String   @default("routine")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  hospital     Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Doctor {
+  id                 String        @id @default(cuid())
+  userId             String?       @unique
+  name               String
+  speciality         String
+  languages          String[]      @default([])
+  fee                Decimal       @default(0)
+  registrationNumber String?
+  availabilitySlots  Json          @default("[]")
+  demo               Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  appointments       Appointment[]
+
+  @@unique([name, speciality])
+}
+
+model Appointment {
+  id          String    @id @default(cuid())
+  patientId   String
+  patientName String    @default("")
+  doctorId    String?
+  hospitalId  String?
+  startsAt    DateTime
+  mode        String    @default("video")
+  status      String    @default("booked")
+  roomName    String?
+  demo        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  patient     Profile   @relation("AppointmentPatient", fields: [patientId], references: [userId], onDelete: Cascade)
+  doctor      Doctor?   @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  hospital    Hospital? @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, startsAt])
+  @@index([doctorId, startsAt])
+}
+
+model Invoice {
+  id                 String                  @id @default(cuid())
+  billNumber         String                  @unique
+  patientId          String
+  hospitalId         String?
+  subtotal           Decimal                 @default(0)
+  tax                Decimal                 @default(0)
+  discount           Decimal                 @default(0)
+  total              Decimal                 @default(0)
+  paymentStatus      String                  @default("pending")
+  razorpayOrderId    String?                 @unique
+  razorpayPaymentId  String?
+  demo               Boolean                 @default(false)
+  createdAt          DateTime                @default(now())
+  patient            Profile                 @relation("InvoicePatient", fields: [patientId], references: [userId], onDelete: Cascade)
+  hospital           Hospital?               @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  items              InvoiceItem[]
+  verificationTokens BillVerificationToken[]
+
+  @@index([patientId, createdAt])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal  @default(1)
+  unitPrice   Decimal  @default(0)
+  taxRate     Decimal  @default(0)
+  createdAt   DateTime @default(now())
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model BillVerificationToken {
+  id        String    @id @default(cuid())
+  billId    String
+  ownerId   String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  invoice   Invoice   @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+model Report {
+  id                     String             @id @default(cuid())
+  ownerId                String
+  patientName            String
+  reportType             String
+  reportDate             DateTime           @default(now())
+  doctorName             String?
+  notes                  String?
+  storagePath            String
+  mimeType               String
+  shareProtectionEnabled Boolean            @default(false)
+  sharePinSalt           String?
+  sharePinHash           String?
+  createdAt              DateTime           @default(now())
+  owner                  Profile            @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  shareTokens            ReportShareToken[]
+}
+
+model ReportShareToken {
+  id            String                 @id @default(cuid())
+  reportId      String
+  ownerId       String
+  tokenHash     String                 @unique
+  pinSalt       String?
+  pinHash       String?
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  viewCount     Int                    @default(0)
+  wrongAttempts Int                    @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime               @default(now())
+  report        Report                 @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  owner         Profile                @relation("ShareOwner", fields: [ownerId], references: [userId], onDelete: Cascade)
+  views         ReportView[]
+  rateLimits    ReportShareRateLimit[]
+
+  @@index([ownerId, createdAt])
+}
+
+model ReportShareRateLimit {
+  shareTokenId String
+  minuteBucket DateTime
+  requestCount Int              @default(0)
+  shareToken   ReportShareToken @relation(fields: [shareTokenId], references: [id], onDelete: Cascade)
+
+  @@id([shareTokenId, minuteBucket])
+}
+
+model ReportView {
+  id                String           @id @default(cuid())
+  shareTokenId      String
+  viewedAt          DateTime         @default(now())
+  viewerFingerprint String?
+  shareToken        ReportShareToken @relation(fields: [shareTokenId], references: [id], onDelete: Cascade)
+
+  @@index([shareTokenId, viewedAt])
+}
+
+model AccessibilityCorrection {
+  id            String   @id @default(cuid())
+  hospitalId    String
+  userId        String?
+  field         String
+  reportedValue Boolean
+  note          String?
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  hospital      Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId, status, createdAt])
+}

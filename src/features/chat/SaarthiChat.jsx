@@ -29,7 +29,7 @@ export default function SaarthiChat() {
     } catch (error) {
       setMessages((items) => [
         ...items,
-        { role: "assistant", text: `I am temporarily unavailable. ${error.message}` },
+        { role: "assistant", text: `Live demo guidance is active. ${error.message}` },
       ]);
     } finally {
       setLoading(false);

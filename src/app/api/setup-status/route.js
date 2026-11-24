@@ -1,0 +1,148 @@
+import { getPrisma } from "../../../lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+const requestLimits = new Map();
+const checks = [
+  {
+    name: "Supabase Auth / Storage",
+    configured: () => Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    test: async () => {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const authResponse = await fetch(`${url.replace(/\/$/, "")}/auth/v1/health`, {
+        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+        cache: "no-store",
+      });
+      if (!authResponse.ok) return false;
+      const storageResponse = await fetch(`${url.replace(/\/$/, "")}/storage/v1/bucket/medical-reports`, {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        cache: "no-store",
+      });
+      return storageResponse.ok;
+    },
+  },
+  {
+    name: "Prisma Postgres",
+    configured: () => Boolean(process.env.DATABASE_URL),
+    test: async () => {
+      const prisma = getPrisma();
+      if (!prisma) return false;
+      const tables = await prisma.$queryRaw`SELECT to_regclass('"Profile"') AS profile_table`;
+      return Boolean(tables[0]?.profile_table);
+    },
+  },
+  {
+    name: "Mapbox",
+    configured: () => Boolean(process.env.MAPBOX_ACCESS_TOKEN),
+    test: async () => {
+      const response = await fetch(
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token=${encodeURIComponent(process.env.MAPBOX_ACCESS_TOKEN)}`,
+        { cache: "no-store" },
+      );
+      return response.ok;
+    },
+  },
+  {
+    name: "OpenRouteService",
+    configured: () => Boolean(process.env.OPENROUTESERVICE_API_KEY),
+    test: async () => {
+      const response = await fetch("https://api.openrouteservice.org/v2/directions/foot-walking", {
+        method: "POST",
+        headers: {
+          Authorization: process.env.OPENROUTESERVICE_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ coordinates: [[8.681495, 49.41461], [8.687872, 49.420318]] }),
+        cache: "no-store",
+      });
+      return response.ok;
+    },
+  },
+  {
+    name: "data.gov.in",
+    configured: () => Boolean(process.env.DATA_GOV_IN_API_KEY && process.env.DATA_GOV_IN_RESOURCE_ID),
+    test: async () => {
+      const url = new URL(`https://api.data.gov.in/resource/${encodeURIComponent(process.env.DATA_GOV_IN_RESOURCE_ID)}`);
+      url.searchParams.set("api-key", process.env.DATA_GOV_IN_API_KEY);
+      url.searchParams.set("format", "json");
+      url.searchParams.set("limit", "1");
+      const response = await fetch(url, { cache: "no-store" });
+      return response.ok;
+    },
+  },
+  {
+    name: "JaaS",
+    configured: () => Boolean(process.env.JAAS_APP_ID && process.env.JAAS_API_KEY_ID && process.env.JAAS_PRIVATE_KEY),
+    test: async () => {
+      const response = await fetch(`https://8x8.vc/${encodeURIComponent(process.env.JAAS_APP_ID)}/config.js`, {
+        cache: "no-store",
+      });
+      return response.ok;
+    },
+  },
+  {
+    name: "Razorpay TEST",
+    configured: () => Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    test: async () => {
+      const credentials = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString("base64");
+      const response = await fetch("https://api.razorpay.com/v1/payments?count=1", {
+        headers: { Authorization: `Basic ${credentials}` },
+        cache: "no-store",
+      });
+      return response.ok;
+    },
+  },
+  {
+    name: "Overpass",
+    configured: () => Boolean(process.env.OVERPASS_API_URL),
+    test: async () => {
+      const response = await fetch(process.env.OVERPASS_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=%5Bout%3Ajson%5D%5Btimeout%3A5%5D%3Bnode%28around%3A100%2C28.6139%2C77.2090%29%5Bamenity%3Dhospital%5D%3Bout%201%3B",
+        cache: "no-store",
+      });
+      return response.ok;
+    },
+  },
+];
+
+export async function GET(request) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  for (const [address, entry] of requestLimits) {
+    if (entry.resetAt <= now) requestLimits.delete(address);
+  }
+  const limit = requestLimits.get(ip);
+  if (limit && limit.resetAt > now && limit.count >= 5) {
+    return Response.json({ error: "Setup checks are temporarily rate limited." }, { status: 429 });
+  }
+  requestLimits.set(ip, limit && limit.resetAt > now
+    ? { count: limit.count + 1, resetAt: limit.resetAt }
+    : { count: 1, resetAt: now + 60_000 });
+
+  const results = await Promise.all(checks.map(async (check) => {
+    const configured = check.configured();
+    if (!configured) return { name: check.name, configured, ok: false, state: "demo" };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+      const ok = await Promise.race([
+        check.test(),
+        new Promise((resolve) => controller.signal.addEventListener("abort", () => resolve(false), { once: true })),
+      ]);
+      return { name: check.name, configured, ok, state: ok ? "live" : "unavailable" };
+    } catch (error) {
+      console.error(`Setup health check failed for ${check.name}: ${error.name || "provider error"}`);
+      return { name: check.name, configured, ok: false, state: "unavailable" };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }));
+  return Response.json({ integrations: results, checkedAt: new Date().toISOString() }, {
+    headers: { "Cache-Control": "no-store" },
+  });
+}

@@ -24,3 +24,4 @@ export function LoadingSkeleton() {
 export function ErrorBanner({ children }) {
   return <div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-red-900">{children}</div>;
 }
+

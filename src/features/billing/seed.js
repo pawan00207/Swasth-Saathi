@@ -1,0 +1,7 @@
+export const billingSeed = [
+  { id: "BILL-1001", patient: "Demo Patient", hospital: "AIIMS New Delhi", date: "2026-11-18", paid: false, demo: true, items: [{ name: "Cardiology consultation", amount: 1200 }, { name: "ECG and laboratory tests", amount: 2800 }, { name: "GST", amount: 720 }] },
+  { id: "BILL-1002", patient: "Demo Patient", hospital: "Apollo Hospitals Chennai", date: "2026-11-16", paid: true, demo: true, items: [{ name: "Pediatric consultation", amount: 900 }, { name: "Blood investigations", amount: 2100 }, { name: "Pharmacy", amount: 650 }, { name: "GST", amount: 657 }] },
+  { id: "BILL-1003", patient: "Demo Patient", hospital: "PGIMER Chandigarh", date: "2026-11-12", paid: false, demo: true, items: [{ name: "Neurology consultation", amount: 1500 }, { name: "MRI scan", amount: 5400 }, { name: "GST", amount: 1242 }] },
+  { id: "BILL-1004", patient: "Demo Patient", hospital: "KEM Hospital Mumbai", date: "2026-10-29", paid: true, demo: true, items: [{ name: "General medicine consultation", amount: 700 }, { name: "X-ray", amount: 950 }, { name: "Medicines", amount: 840 }, { name: "GST", amount: 448 }] },
+  { id: "BILL-1005", patient: "Demo Patient", hospital: "Manipal Hospital Bengaluru", date: "2026-10-20", paid: false, demo: true, items: [{ name: "Orthopedic consultation", amount: 1100 }, { name: "Physiotherapy session", amount: 1800 }, { name: "GST", amount: 522 }] },
+];
