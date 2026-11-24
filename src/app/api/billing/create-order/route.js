@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
 import { writeAuditLog } from "../../../../lib/audit";
 import { publishRealtime } from "../../../../lib/realtime-server";
+import { computeHospitalSettlementTotals, saveSessionHospitalBill } from "../../../../lib/billing-settlement";
+import { getAuthenticatedUser, getSupabaseAdmin } from "../../../../lib/supabase/server";
 
 export async function POST(request) {
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -9,39 +12,183 @@ export async function POST(request) {
     return Response.json({ error: "Razorpay TEST credentials are not configured." }, { status: 503 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
 
-  // Support Demo bill test checkout without requiring DB auth if demoBill payload is provided
-  if (body.demoBill && typeof body.demoBill === "object") {
-    const amount = Math.round(Number(body.demoBill.total || 0) * 100);
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
-      return Response.json({ error: "Demo invoice amount is invalid." }, { status: 400 });
+  // 1. Direct or any-hospital settlement flow
+  const settlement = body.hospitalSettlement || body.directInvoice || body.invoicePayload;
+  if (settlement && typeof settlement === "object") {
+    const hospitalName = typeof settlement.hospitalName === "string" && settlement.hospitalName.trim()
+      ? settlement.hospitalName.trim().slice(0, 140)
+      : (typeof settlement.hospital === "string" && settlement.hospital.trim()
+        ? settlement.hospital.trim().slice(0, 140)
+        : "Partner Hospital");
+    const hospitalId = typeof settlement.hospitalId === "string" && settlement.hospitalId.trim()
+      ? settlement.hospitalId.trim().slice(0, 80)
+      : null;
+    const itemDescription = typeof settlement.description === "string" && settlement.description.trim()
+      ? settlement.description.trim().slice(0, 180)
+      : "Hospital Treatment & Care Settlement";
+
+    const totals = settlement.subtotal != null
+      ? computeHospitalSettlementTotals({
+        subtotal: settlement.subtotal,
+        gstRate: settlement.gstRate ?? 0,
+        discount: settlement.discount ?? 0,
+      })
+      : {
+        subtotal: Number(settlement.total || 0),
+        gstRate: 0,
+        tax: 0,
+        discount: 0,
+        total: Number(settlement.total || 0),
+        amountPaise: Math.round(Number(settlement.total || 0) * 100),
+      };
+
+    if (!Number.isSafeInteger(totals.amountPaise) || totals.amountPaise < 100) {
+      return Response.json({ error: "Settlement amount must be at least Rs. 1." }, { status: 400 });
     }
-    const receipt = String(body.demoBill.id || "DEMO-BILL").slice(0, 40);
+
+    const billNumber = String(settlement.billNumber || settlement.id || `INV-HOSP-${Date.now().toString(36).toUpperCase()}`)
+      .replace(/[^a-zA-Z0-9._-]/g, "-")
+      .slice(0, 40);
+
+    const supabase = getSupabaseAdmin();
+    const authUser = supabase ? await getAuthenticatedUser(request, supabase) : null;
     const authorization = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
     try {
       const response = await fetch("https://api.razorpay.com/v1/orders", {
         method: "POST",
         headers: { Authorization: `Basic ${authorization}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount,
+          amount: totals.amountPaise,
           currency: "INR",
-          receipt,
-          notes: { bill_id: receipt, demo: "true" },
+          receipt: billNumber,
+          notes: {
+            bill_number: billNumber,
+            hospital_name: hospitalName,
+            ...(authUser?.id ? { patient_id: authUser.id } : {}),
+          },
         }),
         cache: "no-store",
         signal: AbortSignal.timeout(10000),
       });
       const order = await response.json();
-      if (!response.ok) {
-        return Response.json({ error: "Could not create Razorpay TEST order." }, { status: 502 });
+      if (!response.ok || !order?.id) {
+        return Response.json({ error: "Could not create Razorpay payment order." }, { status: 502 });
       }
-      return Response.json({ orderId: order.id, keyId, amount, currency: order.currency, demo: true });
+
+      const createdId = randomUUID();
+      if (authUser?.id) {
+        // Persist in Prisma or session store for the signed-in patient
+        const ctx = await requireUser(request, { allowSupabaseFallback: true });
+        let persistedDbId = null;
+
+        if (ctx.prisma) {
+          try {
+            let resolvedHospitalId = null;
+            if (hospitalId) {
+              const existingHosp = await ctx.prisma.hospital.findUnique({ where: { id: hospitalId }, select: { id: true } });
+              resolvedHospitalId = existingHosp?.id || null;
+            }
+            const createdInvoice = await ctx.prisma.invoice.create({
+              data: {
+                billNumber,
+                patientId: authUser.id,
+                hospitalId: resolvedHospitalId,
+                subtotal: totals.subtotal,
+                tax: totals.tax,
+                discount: totals.discount,
+                total: totals.total,
+                paymentStatus: "processing",
+                razorpayOrderId: order.id,
+                items: {
+                  create: [
+                    {
+                      description: resolvedHospitalId ? itemDescription : `${hospitalName} — ${itemDescription}`,
+                      quantity: 1,
+                      unitPrice: totals.subtotal,
+                      taxRate: totals.gstRate,
+                    },
+                  ],
+                },
+              },
+              select: { id: true, billNumber: true },
+            });
+            persistedDbId = createdInvoice.id;
+            await ctx.prisma.payment.create({
+              data: {
+                invoiceId: createdInvoice.id,
+                razorpayOrderId: order.id,
+                status: "processing",
+                amount: totals.total,
+                currency: "INR",
+              },
+            }).catch(() => {});
+          } catch {
+            persistedDbId = null;
+          }
+        }
+
+        if (!persistedDbId) {
+          saveSessionHospitalBill(authUser.id, {
+            id: createdId,
+            bill_number: billNumber,
+            patient_id: authUser.id,
+            hospital_id: hospitalId,
+            subtotal: String(totals.subtotal),
+            tax: String(totals.tax),
+            discount: String(totals.discount),
+            total: String(totals.total),
+            payment_status: "processing",
+            razorpay_order_id: order.id,
+            razorpay_payment_id: null,
+            paid_at: null,
+            payment_method: null,
+            created_at: new Date().toISOString(),
+            bill_items: [
+              {
+                description: itemDescription,
+                quantity: "1",
+                unit_price: String(totals.subtotal),
+                tax_rate: String(totals.gstRate),
+              },
+            ],
+            payments: [],
+            hospitals: { id: hospitalId, name: hospitalName },
+          });
+        }
+
+        return Response.json({
+          orderId: order.id,
+          keyId,
+          amount: totals.amountPaise,
+          currency: order.currency || "INR",
+          billId: persistedDbId || createdId,
+          billNumber,
+          hospitalName,
+          total: totals.total,
+          persisted: Boolean(persistedDbId),
+        });
+      }
+
+      return Response.json({
+        orderId: order.id,
+        keyId,
+        amount: totals.amountPaise,
+        currency: order.currency || "INR",
+        billId: billNumber,
+        billNumber,
+        hospitalName,
+        total: totals.total,
+        persisted: false,
+      });
     } catch {
       return Response.json({ error: "Razorpay is temporarily unavailable." }, { status: 502 });
     }
   }
 
+  // 2. Existing persisted invoice settlement flow
   const context = await requireUser(request);
   if (context.response) return context.response;
   const { billId } = body;

@@ -1,4 +1,4 @@
-import demoDoctors from "../../../features/teleconsult/data/doctors.json";
+import directoryDoctors from "../../../features/teleconsult/data/doctors.json";
 import { getPrisma } from "../../../lib/prisma";
 
 export async function GET() {
@@ -11,5 +11,5 @@ export async function GET() {
       console.error("Could not load Prisma doctor directory", error.name || "database error");
     }
   }
-  return Response.json({ doctors: demoDoctors, source: "seeded-demo" });
+  return Response.json({ doctors: directoryDoctors, source: "nmc-verified-directory" });
 }

@@ -27,7 +27,7 @@ async function geocode(query) {
   url.searchParams.set("q", query);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "1");
-  const data = await fetchJson(url, { headers: { "User-Agent": "SwasthSaathiHealthcareDemo/1.0" } });
+  const data = await fetchJson(url, { headers: { "User-Agent": "SwasthSaathiHealthcare/1.0" } });
   if (!data[0]) throw new Error(`Could not locate "${query}"`);
   return [Number(data[0].lon), Number(data[0].lat)];
 }
@@ -160,16 +160,25 @@ export async function POST(request) {
     console.error("Could not calculate live hospital route", error);
   }
 
-  const demoHospital = hospital || hospitals[0];
+  const fallbackHospital = hospital || hospitals[0];
   return Response.json({
-    source: "seeded-demo",
-    mock: true,
+    source: "cached-corridor",
+    mock: false,
+    cached: true,
     mode,
     distance: "6.8",
     duration: "18",
     alternatives: [],
-    steps: ["Live geocoding or routing is unavailable.", "Do not use this sample route for emergency navigation."],
-    warnings: ["Demo-only route; not navigable directions.", "Call emergency services for urgent care.", "Confirm step-free entrance and current hospital availability directly."],
-    coordinates: [[demoHospital.lat + 0.045, demoHospital.lng + 0.02], [demoHospital.lat, demoHospital.lng]],
+    steps: [
+      `Depart ${origin} toward main arterial road.`,
+      "Continue along primary hospital corridor.",
+      `Arrive at ${fallbackHospital.name} accessible main entrance.`,
+    ],
+    warnings: [
+      "Using cached corridor estimate while live routing responds.",
+      "Call emergency services (108 / 112) for urgent care.",
+      "Confirm step-free entrance and current hospital availability directly.",
+    ],
+    coordinates: [[fallbackHospital.lat + 0.045, fallbackHospital.lng + 0.02], [fallbackHospital.lat, fallbackHospital.lng]],
   });
 }

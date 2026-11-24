@@ -14,16 +14,17 @@ function buildPgConfig(rawUrl) {
     );
     return {
       connectionString,
+      connectionTimeoutMillis: 2500,
       ssl: { rejectUnauthorized: false },
     };
   }
-  return { connectionString };
+  return { connectionString, connectionTimeoutMillis: 2500 };
 }
 
 export function getPrisma() {
   if (!prisma) {
     try {
-      loadEnv({ path: ".env.local", override: true });
+      loadEnv({ path: ".env.local", override: false });
     } catch {
       // Safe no-op when .env.local is absent in production
     }

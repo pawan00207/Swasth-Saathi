@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
 import { computeInvoiceHash } from "../../../../lib/audit";
+import { getPublicBaseUrl } from "../../../../lib/url";
 
 export async function POST(request) {
   const context = await requireUser(request);
@@ -27,7 +28,7 @@ export async function POST(request) {
     data: { billId: bill.id, ownerId: context.user.id, tokenHash },
     select: { id: true },
   });
-  const origin = new URL(request.url).origin;
+  const origin = getPublicBaseUrl(request);
   return Response.json({
     tokenId: created.id,
     url: `${origin}/verify/${token}`,

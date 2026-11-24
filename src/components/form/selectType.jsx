@@ -1,21 +1,20 @@
 import React from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-export default function SelectType({ setType, setStep }) {
+export default function SelectType({ setType, setStep, embedded = false }) {
   const [value, setValue] = React.useState("");
-  // console.log(value);
 
   return (
-    <div className="flex flex-col mt-48 justify-center items-center animate-in slide-in-from-bottom fade-in duration-700 ">
-      <h1 className="text-5xl mb-8 font-semibold text-emerald-500">
+    <div className={`flex flex-col items-center justify-center ${embedded ? "py-6" : "mt-32"} animate-in slide-in-from-bottom fade-in duration-700`}>
+      <h2 className={`${embedded ? "text-xl mb-4" : "text-4xl mb-8"} text-center font-bold text-slate-950`}>
         Are you an individual or Organization?
-      </h1>
+      </h2>
       <ToggleGroup
         value={value}
-        onValueChange={(value) => {
-          if (value) {
-            setValue(value);
-            setType(value);
+        onValueChange={(next) => {
+          if (next) {
+            setValue(next);
+            setType(next);
             setStep(1);
           }
         }}
@@ -26,16 +25,16 @@ export default function SelectType({ setType, setStep }) {
         <ToggleGroupItem
           value="individual"
           aria-label="Toggle user"
-          className="text-lg text-emerald-600 hover:text-white"
+          className="text-base font-semibold text-teal-900 hover:bg-teal-800 hover:text-white"
         >
-          <h2>Individual</h2>
+          <span>Individual</span>
         </ToggleGroupItem>
         <ToggleGroupItem
           value="organization"
           aria-label="Toggle Organization"
-          className="text-lg text-emerald-600 hover:text-white"
+          className="text-base font-semibold text-teal-900 hover:bg-teal-800 hover:text-white"
         >
-          <h2>Organization</h2>
+          <span>Organization</span>
         </ToggleGroupItem>
       </ToggleGroup>
     </div>

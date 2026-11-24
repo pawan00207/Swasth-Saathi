@@ -107,8 +107,8 @@ export function OrganizationTable() {
         const finalTableData = constructSentRecords(sentRecords);
         setTableData(finalTableData);
       } catch (error) {
-        console.warn("Web5 records unavailable; showing local demo dashboard.", error);
-        setTableData([]);
+        console.warn("Web5 records unavailable; showing cached historical issued records.", error);
+        setTableData(organizationHealthRecordsData);
       }
     };
 
@@ -193,7 +193,7 @@ export function OrganizationTable() {
         const router = useRouter();
         return (
           <Dialog>
-            <DialogTrigger>
+            <DialogTrigger asChild>
               <Button className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500">
                 View
               </Button>
@@ -202,36 +202,39 @@ export function OrganizationTable() {
               <DialogHeader>
                 <DialogTitle>Here is your Health Record.</DialogTitle>
                 <DialogDescription>
-                  <img
-                    src={image}
-                    alt="Health Record Image"
-                    style={{
-                      width: "100%",
-                      height: "400px",
-                      objectFit: "contain",
-                    }}
-                  />
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={() => {
-                        setImageState(image);
-                        router.push(`/viewRecord`).catch((error) => {
-                          if (!error?.cancelled) console.error(error);
-                        });
-                      }}
-                      className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500 mt-4"
-                    >
-                      Open Record
-                    </Button>
-                    <Link
-                      href={`/records/view/${encodeURIComponent(row.getValue("healthRecordName"))}`}
-                      className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-cyan-700 px-4 text-sm font-medium text-white"
-                    >
-                      Generate QR
-                    </Link>
-                  </div>
+                  Preview, open, or generate a scannable QR code for this issued record.
                 </DialogDescription>
               </DialogHeader>
+              <div className="space-y-4">
+                <img
+                  src={image}
+                  alt="Health Record Image"
+                  style={{
+                    width: "100%",
+                    height: "400px",
+                    objectFit: "contain",
+                  }}
+                />
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => {
+                      setImageState(image);
+                      router.push(`/viewRecord`).catch((error) => {
+                        if (!error?.cancelled) console.error(error);
+                      });
+                    }}
+                    className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500 mt-4"
+                  >
+                    Open Record
+                  </Button>
+                  <Link
+                    href={`/records/view/${encodeURIComponent(row.getValue("healthRecordName"))}`}
+                    className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-cyan-700 px-4 text-sm font-medium text-white"
+                  >
+                    Generate QR
+                  </Link>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         );

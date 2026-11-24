@@ -2,6 +2,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
 import { writeAuditLog } from "../../../../lib/audit";
 import { publishRealtime } from "../../../../lib/realtime-server";
+import { markSessionHospitalBillPaid } from "../../../../lib/billing-settlement";
+import { notifyPaymentSettlementTelegram } from "../../../../lib/telegram";
+import { getAuthenticatedUser, getSupabaseAdmin } from "../../../../lib/supabase/server";
 
 export async function POST(request) {
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -9,8 +12,8 @@ export async function POST(request) {
   if (!keyId || !keySecret || !keyId.startsWith("rzp_test_")) {
     return Response.json({ error: "Razorpay TEST credentials are not configured." }, { status: 503 });
   }
-  const body = await request.json();
-  const { billId, orderId, paymentId, signature, demo } = body;
+  const body = await request.json().catch(() => ({}));
+  const { billId, orderId, paymentId, signature, directInvoice, hospitalName, billNumber, total } = body;
   if (![billId, orderId, paymentId, signature].every((value) => typeof value === "string" && value)) {
     return Response.json({ error: "Invoice, order, payment, and signature values are required." }, { status: 400 });
   }
@@ -21,18 +24,72 @@ export async function POST(request) {
     return Response.json({ error: "Payment signature verification failed." }, { status: 400 });
   }
 
-  if (demo) {
-    return Response.json({ status: "paid", paymentId, method: "razorpay_test", paidAt: new Date().toISOString(), demo: true });
+  if (directInvoice) {
+    const paidAt = new Date().toISOString();
+    const supabase = getSupabaseAdmin();
+    const authUser = supabase ? await getAuthenticatedUser(request, supabase) : null;
+    if (authUser?.id) {
+      markSessionHospitalBillPaid(authUser.id, {
+        billId,
+        orderId,
+        paymentId,
+        method: "razorpay",
+        paidAt,
+      });
+    }
+    notifyPaymentSettlementTelegram({
+      billNumber: String(billNumber || billId),
+      hospitalName: typeof hospitalName === "string" && hospitalName.trim() ? hospitalName.trim() : "Partner Hospital",
+      amountInr: Number(total || 0),
+      paymentId,
+    }).catch(() => {});
+    return Response.json({ status: "paid", paymentId, method: "razorpay_verified", paidAt });
   }
 
-  const context = await requireUser(request);
+  const context = await requireUser(request, { allowSupabaseFallback: true });
   if (context.response) return context.response;
+
+  if (!context.prisma) {
+    const paidAt = new Date().toISOString();
+    const updatedSession = markSessionHospitalBillPaid(context.user.id, {
+      billId,
+      orderId,
+      paymentId,
+      method: "razorpay",
+      paidAt,
+    });
+    if (!updatedSession) {
+      return Response.json({ error: "Payment order does not belong to this invoice." }, { status: 403 });
+    }
+    notifyPaymentSettlementTelegram({
+      billNumber: updatedSession.bill_number || billId,
+      hospitalName: updatedSession.hospitals?.name || hospitalName || "Partner Hospital",
+      amountInr: Number(updatedSession.total || total || 0),
+      paymentId,
+    }).catch(() => {});
+    return Response.json({ status: "paid", paymentId, method: "razorpay", paidAt });
+  }
 
   const bill = await context.prisma.invoice.findFirst({
     where: { id: billId, patientId: context.user.id },
-    select: { id: true, billNumber: true, hospitalId: true, total: true, paymentStatus: true, razorpayOrderId: true, razorpayPaymentId: true, paidAt: true, paymentMethod: true },
+    include: { hospital: { select: { name: true } } },
   });
   if (!bill || bill.razorpayOrderId !== orderId) {
+    const updatedSession = markSessionHospitalBillPaid(context.user.id, {
+      billId,
+      orderId,
+      paymentId,
+      method: "razorpay",
+      paidAt: new Date().toISOString(),
+    });
+    if (updatedSession) {
+      return Response.json({
+        status: "paid",
+        paymentId,
+        method: "razorpay",
+        paidAt: updatedSession.paid_at,
+      });
+    }
     return Response.json({ error: "Payment order does not belong to this invoice." }, { status: 403 });
   }
 
@@ -110,6 +167,13 @@ export async function POST(request) {
         publishRealtime(`billing-invoice-${bill.id}`, "updated", { invoiceId: bill.id, status: "paid" }),
         bill.hospitalId ? publishRealtime(`hospital-invoices-${bill.hospitalId}`, "updated", { invoiceId: bill.id, status: "paid" }) : Promise.resolve(),
       ]);
+      notifyPaymentSettlementTelegram({
+        billNumber: bill.billNumber,
+        hospitalName: bill.hospital?.name || hospitalName || "Partner Hospital",
+        amountInr: Number(bill.total),
+        paymentId,
+        prisma: context.prisma,
+      }).catch(() => {});
     }
     return Response.json({ status: "paid", paymentId, method, paidAt: paidAt.toISOString() });
   } catch (error) {

@@ -1,50 +1,62 @@
+import { GoogleGenAI } from "@google/genai";
+
 export async function POST(request) {
-  const { message } = await request.json();
-  if (!message || typeof message !== "string") {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Please enter a valid healthcare question." }, { status: 400 });
+  }
+
+  const message = body?.message;
+  if (!message || typeof message !== "string" || !message.trim()) {
     return Response.json({ error: "Please enter a healthcare question." }, { status: 400 });
   }
 
-  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || "").trim();
   if (!apiKey) {
-    return Response.json({
-      reply: "Saarthi AI is in demo mode. Add GOOGLE_GEMINI_API_KEY to enable live AI answers. For urgent medical concerns, contact emergency services.",
-    });
+    return Response.json(
+      { error: "Gemini API key is not configured on the server yet. Add GEMINI_API_KEY or GOOGLE_GEMINI_API_KEY in Settings > Secrets." },
+      { status: 503 },
+    );
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const configuredModel = (process.env.GEMINI_MODEL || "").trim();
+  const model = configuredModel && !configuredModel.startsWith("gemini-2.0") && !configuredModel.startsWith("gemini-1.5")
+    ? configuredModel
+    : "gemini-4-hydrogen";
+
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{
-            text: "You are Saarthi AI for Swasth Saathi, an Indian accessible healthcare platform. Give concise, practical, inclusive information about schemes, disability support, hospital access, teleconsultation and medical reports. Never diagnose or prescribe. Direct emergencies to 112 or 108.",
-          }],
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
         },
-        contents: [{ role: "user", parts: [{ text: message }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 500 },
-      }),
+      },
     });
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("Gemini API error", data.error?.message || response.status);
-      const lowerMessage = String(data.error?.message || "").toLowerCase();
-      const guidance = lowerMessage.includes("billing")
-        ? "The connected Gemini project needs billing enabled before live answers can be generated."
-        : "The connected Gemini API could not answer this request.";
-      return Response.json({
-        reply: `Saarthi AI is using fallback guidance. ${guidance} For scheme or bed questions, use the matching page. For urgent concerns, contact 112 or 108.`,
-        source: "demo-fallback",
-      });
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: message.trim().slice(0, 2000),
+      config: {
+        systemInstruction:
+          "You are Saarthi AI for Swasth Saathi, an Indian accessible healthcare platform integrated with ABDM/ABHA, PM-JAY schemes, Care Wallet billing, hospital bed availability, teleconsultation, and SOS emergency services. Give concise, practical, inclusive answers (under 150 words). Never diagnose or prescribe medication. Direct medical emergencies to 112 or 108.",
+      },
+    });
+
+    const reply = response.text?.trim();
+    if (!reply) {
+      return Response.json({ error: "No response was returned by Gemini." }, { status: 502 });
     }
-    const reply = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n");
-    return Response.json({
-      reply: reply || "I could not generate a response. Please rephrase your question.",
-    });
+
+    return Response.json({ reply, model, source: "live-gemini" });
   } catch (error) {
-    console.error("Saarthi AI request failed", error);
-    return Response.json({ error: "Saarthi AI is temporarily unavailable." }, { status: 502 });
+    console.error("Saarthi AI request failed", error?.message || error);
+    const status = Number(error?.status) === 403 || Number(error?.status) === 400 ? 502 : 502;
+    return Response.json(
+      { error: "Saarthi AI could not reach Gemini right now. Please try again shortly or use the scheme, bed, or ABDM pages." },
+      { status },
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { requireUser } from "../../../../lib/api-auth";
 import { writeAuditLog } from "../../../../lib/audit";
 import { publishRealtime } from "../../../../lib/realtime-server";
+import { notifySosHospitalPreAlertTelegram } from "../../../../lib/telegram";
 import { sendWhatsAppMessage } from "../../../../lib/whatsapp/provider";
 
 export async function PATCH(request, { params }) {
@@ -79,32 +80,38 @@ export async function PATCH(request, { params }) {
     const hospitalId = String(body.hospitalId || "");
     const hospital = await context.prisma.hospital.findUnique({
       where: { id: hospitalId },
-      select: { id: true, name: true, staffWhatsapp: true },
+      select: { id: true, name: true },
     });
     if (!hospital) return Response.json({ error: "Hospital not found." }, { status: 404 });
-    await context.prisma.sosEvent.update({
+    const updatedSos = await context.prisma.sosEvent.update({
       where: { id: sos.id },
       data: { hospitalId: hospital.id },
     });
-    let sent = false;
-    if (hospital.staffWhatsapp) {
-      const prefix = sos.isDrill ? "TEST ALERT PRE-ALERT: " : "INCOMING EMERGENCY PRE-ALERT: ";
-      const res = await sendWhatsAppMessage({
-        to: hospital.staffWhatsapp,
-        body: `${prefix}Patient en route to ${hospital.name} needing ${sos.neededBedType} bed (SOS #${sos.id}).`,
-        messageType: "sos_hospital_prealert",
-        prisma: context.prisma,
-      });
-      sent = res.ok;
-    }
+    const notification = await notifySosHospitalPreAlertTelegram({
+      sosEvent: updatedSos,
+      hospitalName: hospital.name,
+      hospitalId: hospital.id,
+      bedType: sos.neededBedType,
+      prisma: context.prisma,
+    });
     await writeAuditLog(context.prisma, {
       entityType: "sos_event",
       entityId: sos.id,
       actorId: context.user.id,
       action: "hospital_prealerted",
-      details: { hospitalId: hospital.id, sent },
+      details: { hospitalId: hospital.id, provider: "telegram", sent: notification.ok },
     });
-    return Response.json({ preAlerted: true, whatsappSent: sent, hospitalName: hospital.name });
+    if (!notification.ok) {
+      const status = notification.configured ? 502 : 503;
+      return Response.json({
+        error: notification.configured
+          ? "Telegram pre-alert could not be delivered."
+          : "Telegram bot is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID.",
+        preAlerted: false,
+        provider: "telegram",
+      }, { status });
+    }
+    return Response.json({ preAlerted: true, telegramSent: true, hospitalName: hospital.name, provider: "telegram" });
   }
 
   return Response.json({ error: "Unsupported SOS action." }, { status: 400 });

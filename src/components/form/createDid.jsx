@@ -8,7 +8,7 @@ import { didState, web5State } from "@/atoms/data";
 import protocolDefinition from "@/lib/protocolDefinition.json";
 import { initWeb5 } from "@/helpers/initWeb5";
 
-export default function CreateDid({ name, year, userType }) {
+export default function CreateDid({ name, year, userType, embedded = false }) {
   const router = useRouter();
   const [myDid, setMyDid] = useState(null);
 
@@ -47,15 +47,15 @@ export default function CreateDid({ name, year, userType }) {
       return did;
     } catch (error) {
       console.warn(
-        "Web5/DWN is unavailable in this demo environment; continuing with a local demo DID.",
+        "Web5/DWN is unavailable; continuing with a local Swasth DID.",
         error
       );
-      const demoId = `${Date.now().toString(36)}-${Math.random()
+      const localId = `${Date.now().toString(36)}-${Math.random()
         .toString(36)
         .slice(2, 8)}`;
       setWeb5(null);
-      setMyDid(`did:demo:${demoId}`);
-      return `did:demo:${demoId}`;
+      setMyDid(`did:swasth:${localId}`);
+      return `did:swasth:${localId}`;
     }
   }
 
@@ -78,11 +78,11 @@ export default function CreateDid({ name, year, userType }) {
   }
 
   return (
-    <div className=" flex flex-col h-screen justify-center items-center">
-      <h1 className="text-3xl font-bold text-emerald-600">Welcome, {name} </h1>
-      <div className="flex space-x-3">
+    <div className={`flex flex-col items-center justify-center ${embedded ? "py-6" : "min-h-[60vh]"}`}>
+      <h1 className="text-2xl font-bold text-teal-900">Welcome, {name}</h1>
+      <div className="mt-2 flex space-x-3">
         {loading && <Loader />}
-        <p className="text-xl text-emerald-500">{text}</p>
+        <p className="text-base text-slate-700">{text}</p>
       </div>
 
       <br />

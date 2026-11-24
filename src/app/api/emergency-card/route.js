@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { requireUser } from "../../../lib/api-auth";
 import { writeAuditLog } from "../../../lib/audit";
+import { getPublicBaseUrl } from "../../../lib/url";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export async function POST(request) {
     details: { expiry },
   });
 
-  const origin = new URL(request.url).origin;
+  const origin = getPublicBaseUrl(request);
   return Response.json({
     id: created.id,
     token,

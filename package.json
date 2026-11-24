@@ -14,6 +14,7 @@
     "db:seed": "prisma db execute --file prisma/seed.sql"
   },
   "dependencies": {
+    "@google/genai": "^3.6.1",
     "@prisma/adapter-pg": "7",
     "@prisma/client": "7",
     "@radix-ui/react-avatar": "^1.0.4",

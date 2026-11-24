@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { generatePdf } from "../../../lib/generatePdf";
-import { getSupabaseBrowser } from "../../../lib/supabase/browser";
+import { ensureSupabaseBrowser } from "../../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../../lib/useRealtimeRefresh";
 import { DEFAULT_SERVICE_CATALOG } from "../../../lib/service-catalog";
 import { useI18n } from "../../../components/I18nProvider";
@@ -48,8 +48,8 @@ export default function InvoiceAdminPage() {
   useEffect(() => {
     let active = true;
     async function initialize() {
-      const supabase = getSupabaseBrowser();
-      const { data, error } = await supabase?.auth.getSession() || { data: { session: null }, error: null };
+      const supabase = await ensureSupabaseBrowser();
+      const { data, error } = (await supabase?.auth.getSession()) || { data: { session: null }, error: null };
       if (error) throw error;
       if (!data.session) {
         setMessage("Sign in with an authorized hospital administrator account.");

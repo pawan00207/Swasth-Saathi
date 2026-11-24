@@ -7,8 +7,8 @@ function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-function getValidDemoJwt(appId) {
-  const token = process.env.JAAS_DEMO_JWT?.trim();
+function getValidRoomJwt(appId) {
+  const token = (process.env.JAAS_ROOM_JWT || process.env.JAAS_DEMO_JWT || "").trim();
   if (!token || !appId) return null;
   try {
     const parts = token.split(".");
@@ -29,9 +29,9 @@ export async function GET() {
   const privateRoomsConfigured = Boolean(
     appId && process.env.JAAS_API_KEY_ID && process.env.JAAS_PRIVATE_KEY,
   );
-  const demoToken = getValidDemoJwt(appId);
+  const roomToken = getValidRoomJwt(appId);
   return Response.json(
-    { appId, privateRoomsConfigured, demoToken },
+    { appId, privateRoomsConfigured, roomToken },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

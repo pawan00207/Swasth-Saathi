@@ -1,5 +1,6 @@
 import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
+import { getPublicBaseUrl } from "../../../../lib/url";
 
 const expiryOptions = {
   "24h": 24 * 60 * 60 * 1000,
@@ -52,7 +53,7 @@ export async function POST(request) {
   return Response.json({
     token,
     shareId: share.id,
-    url: `${new URL(request.url).origin}/r/${token}`,
+    url: `${getPublicBaseUrl(request)}/r/${token}`,
     expiresAt: expiresAt?.toISOString() || null,
   }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, MapPin, Mic, PhoneCall, ShieldAlert, Volume2 } from "lucide-react";
 import AccessibleModal from "../../components/AccessibleModal";
 import { useI18n } from "../../components/I18nProvider";
-import { getSupabaseBrowser } from "../../lib/supabase/browser";
+import { ensureSupabaseBrowser } from "../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../lib/useRealtimeRefresh";
 import { useVoice } from "../../lib/useVoice";
 
@@ -16,6 +16,7 @@ export default function SosFloatingWidget() {
   const [countdown, setCountdown] = useState(null);
   const [isDrill, setIsDrill] = useState(false);
   const [neededBedType, setNeededBedType] = useState("ICU");
+  const [shareLocation, setShareLocation] = useState(false);
   const [addressText, setAddressText] = useState("");
   const [coords, setCoords] = useState({ lat: null, lng: null });
   const [gpsStatus, setGpsStatus] = useState("");
@@ -23,7 +24,10 @@ export default function SosFloatingWidget() {
   const [sosResult, setSosResult] = useState(null);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusIsWarning, setStatusIsWarning] = useState(false);
   const [preAlertedHospitals, setPreAlertedHospitals] = useState({});
+  const busyRef = useRef(false);
+  const clientRequestIdRef = useRef("");
 
   const captureLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -44,42 +48,54 @@ export default function SosFloatingWidget() {
   }, []);
 
   const triggerSosNow = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setCountdown(null);
     setBusy(true);
     setError("");
     setStatusMessage("");
     try {
-      const supabase = getSupabaseBrowser();
-      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+      const supabase = await ensureSupabaseBrowser();
+      const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
       const headers = { "Content-Type": "application/json" };
       if (data.session?.access_token) {
         headers.Authorization = `Bearer ${data.session.access_token}`;
+      }
+      if (!clientRequestIdRef.current) {
+        clientRequestIdRef.current = `sos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       }
       const response = await fetch("/api/sos", {
         method: "POST",
         headers,
         body: JSON.stringify({
-          latitude: coords.lat,
-          longitude: coords.lng,
-          addressText,
+          shareLocation,
+          latitude: shareLocation ? coords.lat : null,
+          longitude: shareLocation ? coords.lng : null,
+          addressText: shareLocation ? addressText : "",
           neededBedType,
           isDrill,
+          idempotencyKey: clientRequestIdRef.current,
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not send SOS alert.");
       setSosResult(result);
-      setStatusMessage(
-        result.demo
-          ? result.message
-          : `${isDrill ? "TEST ALERT" : "SOS"} sent to ${result.contactsNotified} opted-in contact(s).`,
-      );
+      const baseMessage = result.message ||
+        `${isDrill ? "TEST ALERT" : "SOS"} dispatched to ${result.contactsNotified} opted-in contact(s).`;
+      const telegramMessage = result.telegram?.sent
+        ? "Telegram alert sent."
+        : result.telegram?.status === "unconfigured"
+          ? "Telegram alert not sent: the server bot token or destination chat ID is missing."
+          : "Telegram alert not sent: delivery failed; check the bot, chat ID, and server logs.";
+      setStatusMessage(`${baseMessage} ${telegramMessage}`);
+      setStatusIsWarning(!result.telegram?.sent);
     } catch (err) {
       setError(err.message || t("errors.network"));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
-  }, [addressText, coords.lat, coords.lng, isDrill, neededBedType, t]);
+  }, [addressText, coords.lat, coords.lng, isDrill, neededBedType, shareLocation, t]);
 
   useEffect(() => {
     if (countdown === null) return undefined;
@@ -93,9 +109,9 @@ export default function SosFloatingWidget() {
 
   const refreshSosStatus = useCallback(async () => {
     const id = sosResult?.sosEvent?.id;
-    if (!id || sosResult?.demo) return;
-    const supabase = getSupabaseBrowser();
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    if (!id || id.startsWith("SOS-LIVE-")) return;
+    const supabase = await ensureSupabaseBrowser();
+    const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
     if (!data.session?.access_token) return;
     const res = await fetch("/api/sos", {
       headers: { Authorization: `Bearer ${data.session.access_token}` },
@@ -107,25 +123,26 @@ export default function SosFloatingWidget() {
     if (latest) {
       setSosResult((curr) => curr ? { ...curr, sosEvent: { ...curr.sosEvent, ...latest } } : curr);
     }
-  }, [sosResult?.demo, sosResult?.sosEvent?.id]);
+  }, [sosResult?.sosEvent?.id]);
 
   useRealtimeRefresh(
-    sosResult?.sosEvent?.id && !sosResult?.demo ? [`sos-event-${sosResult.sosEvent.id}`] : [],
+    sosResult?.sosEvent?.id && !sosResult.sosEvent.id.startsWith("SOS-LIVE-") ? [`sos-event-${sosResult.sosEvent.id}`] : [],
     refreshSosStatus,
     10000,
   );
 
   async function markSafe() {
     if (!sosResult?.sosEvent?.id) return;
-    if (sosResult.demo) {
+    if (sosResult.sosEvent.id.startsWith("SOS-LIVE-")) {
       setSosResult((curr) => ({ ...curr, sosEvent: { ...curr.sosEvent, status: "resolved" } }));
-      setStatusMessage("Demo SOS marked safe.");
+      setStatusMessage("SOS marked safe & closed.");
+      setStatusIsWarning(false);
       return;
     }
     setBusy(true);
     try {
-      const supabase = getSupabaseBrowser();
-      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+      const supabase = await ensureSupabaseBrowser();
+      const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
       const res = await fetch(`/api/sos/${encodeURIComponent(sosResult.sosEvent.id)}`, {
         method: "PATCH",
         headers: {
@@ -138,6 +155,7 @@ export default function SosFloatingWidget() {
       if (!res.ok) throw new Error(payload.error || "Could not send all-clear.");
       setSosResult((curr) => ({ ...curr, sosEvent: payload.sosEvent }));
       setStatusMessage("All-clear sent to opted-in contacts and live tracking closed.");
+      setStatusIsWarning(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -146,28 +164,41 @@ export default function SosFloatingWidget() {
   }
 
   async function preAlertHospital(hospitalId) {
-    if (!sosResult?.sosEvent?.id || sosResult.demo) {
-      setStatusMessage("Hospital WhatsApp pre-alert is simulated in demo mode.");
-      setPreAlertedHospitals((prev) => ({ ...prev, [hospitalId]: true }));
+    const sosEvent = sosResult?.sosEvent;
+    if (!sosEvent?.id) {
+      setError("Create an SOS alert before sending a hospital pre-alert.");
       return;
     }
+    setError("");
     try {
-      const supabase = getSupabaseBrowser();
-      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
-      const res = await fetch(`/api/sos/${encodeURIComponent(sosResult.sosEvent.id)}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.session?.access_token || ""}`,
+      const supabase = await ensureSupabaseBrowser();
+      const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
+      const isLocalEvent = sosEvent.id.startsWith("SOS-LIVE-");
+      const res = await fetch(
+        isLocalEvent ? "/api/sos/pre-alert" : `/api/sos/${encodeURIComponent(sosEvent.id)}`,
+        {
+          method: isLocalEvent ? "POST" : "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session?.access_token || ""}`,
+          },
+          body: JSON.stringify(isLocalEvent
+            ? {
+              sosId: sosEvent.id,
+              hospitalId,
+              bedType: sosEvent.neededBedType || neededBedType,
+              isDrill: Boolean(sosEvent.isDrill),
+            }
+            : { action: "pre-alert", hospitalId }),
         },
-        body: JSON.stringify({ action: "pre-alert", hospitalId }),
-      });
+      );
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || "Could not pre-alert hospital.");
       setPreAlertedHospitals((prev) => ({ ...prev, [hospitalId]: true }));
-      setStatusMessage(`Pre-alert logged for ${payload.hospitalName}.`);
+      setStatusMessage(`Telegram pre-alert sent for ${payload.hospitalName}.`);
+      setStatusIsWarning(false);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not send Telegram pre-alert.");
     }
   }
 
@@ -175,14 +206,20 @@ export default function SosFloatingWidget() {
     setOpen(true);
     setError("");
     setStatusMessage("");
+    setStatusIsWarning(false);
     setSosResult(null);
     setPreAlertedHospitals({});
-    captureLocation();
+    setShareLocation(false);
+    setCoords({ lat: null, lng: null });
+    setGpsStatus("Location is private unless you share it below.");
+    clientRequestIdRef.current = `sos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   const smsFallbackBody = encodeURIComponent(
     `${isDrill ? "TEST ALERT: " : "EMERGENCY SOS: "}Need ${neededBedType} bed. Location: ${
-      coords.lat != null ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}` : (addressText || "Location unavailable")
+      shareLocation
+        ? (coords.lat != null ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}` : (addressText || "Location unavailable"))
+        : "Not shared"
     }`,
   );
 
@@ -290,24 +327,56 @@ export default function SosFloatingWidget() {
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
+                <label className="flex min-h-[40px] cursor-pointer items-center gap-2 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={shareLocation}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setShareLocation(next);
+                      if (next && coords.lat == null) {
+                        captureLocation();
+                      }
+                    }}
+                  />
+                  <span>Share my GPS / landmark location with SOS alert</span>
+                </label>
+
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label htmlFor="sos-address-input" className="text-sm font-semibold text-slate-900">
-                    Location / Landmark
+                    Location / Landmark (optional)
                   </label>
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-700">
-                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                    {gpsStatus || (coords.lat != null ? `${coords.lat}, ${coords.lng}` : "Manual fallback")}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-700">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                      {shareLocation && coords.lat != null ? `${coords.lat}, ${coords.lng}` : gpsStatus}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShareLocation(true);
+                        captureLocation();
+                      }}
+                      className="rounded border border-teal-700 bg-white px-2 py-1 text-xs font-semibold text-teal-900 hover:bg-teal-50"
+                    >
+                      Share GPS
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-1 flex gap-2">
                   <input
                     id="sos-address-input"
                     type="text"
-                    placeholder="Street, landmark, or area (optional if GPS captured)"
+                    placeholder="Street, landmark, or area (shared only if enabled above)"
                     className="min-h-[44px] flex-1 rounded border border-slate-400 bg-white px-3 py-2 text-sm"
                     value={addressText}
-                    onChange={(e) => setAddressText(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAddressText(val);
+                      if (val.trim()) setShareLocation(true);
+                    }}
                   />
                   {voice.supported && (
                     <button
@@ -315,7 +384,10 @@ export default function SosFloatingWidget() {
                       onClick={() =>
                         voice.listening
                           ? voice.stopListening()
-                          : voice.listen((text) => setAddressText((prev) => (prev ? `${prev} ${text}` : text)))
+                          : voice.listen((text) => {
+                              setShareLocation(true);
+                              setAddressText((prev) => (prev ? `${prev} ${text}` : text));
+                            })
                       }
                       aria-label={t("sos.voiceInput")}
                       className={`min-h-[44px] rounded border px-3 py-2 text-sm font-semibold ${
@@ -395,7 +467,14 @@ export default function SosFloatingWidget() {
           )}
 
           {statusMessage && (
-            <div role="status" className="rounded-lg border border-teal-700 bg-teal-50 p-3 text-sm font-semibold text-teal-950">
+            <div
+              role={statusIsWarning ? "alert" : "status"}
+              className={`rounded-lg border p-3 text-sm font-semibold ${
+                statusIsWarning
+                  ? "border-amber-700 bg-amber-50 text-amber-950"
+                  : "border-teal-700 bg-teal-50 text-teal-950"
+              }`}
+            >
               {statusMessage}
             </div>
           )}
@@ -466,8 +545,8 @@ export default function SosFloatingWidget() {
                             <strong>{h.neededBedAvailable}</strong>
                           </p>
                         </div>
-                        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
-                          {h.demo ? "Demo" : "Live"}
+                        <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-bold text-green-950">
+                          Live
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">

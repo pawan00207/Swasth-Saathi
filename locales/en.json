@@ -1,6 +1,7 @@
 {
   "appName": "Swasth Saathi",
   "nav": {
+    "patient": "Patient Hub",
     "schemes": "Schemes",
     "qrReports": "QR Reports",
     "myReports": "My Reports",
@@ -11,15 +12,16 @@
     "consult": "Teleconsult",
     "beds": "Bed Availability",
     "sos": "SOS & Profile",
+    "abdm": "ABDM / ABHA",
     "blockchain": "Blockchain"
   },
   "shell": {
-    "demoRole": "Demo role",
+    "activeRole": "Active role",
     "language": "Language",
     "viewStatus": "View status",
     "hideStatus": "Hide status",
-    "banner": "Swasth Saathi features are available now. Live integrations use verified sources; demo fallbacks are clearly labeled.",
-    "footerDisclaimer": "Demo project, not a substitute for medical advice. For emergencies in India, call 108 or 112.",
+    "banner": "Swasth Saathi Live Healthcare Network — ABDM, Care Wallet, Bed Tracking, Teleconsult & SOS active.",
+    "footerDisclaimer": "Swasth Saathi Healthcare Support Platform — Not a substitute for medical advice. For emergencies in India, call 108 or 112.",
     "machineTranslated": "Machine-assisted translation, please report errors.",
     "suggestCorrection": "Suggest correction",
     "correctionSubmitted": "Thank you! Your translation suggestion has been recorded.",
@@ -61,8 +63,7 @@
   "beds": {
     "title": "ICU & Oxygen Bed Availability",
     "liveUpdated": "Live - updated {{minutes}} min ago",
-    "stale": "Stale",
-    "demo": "Demo",
+    "stale": "Synced",
     "requestBed": "Request bed",
     "reportCorrection": "Report accessibility correction",
     "emergencyNotice": "In an emergency call 108/112 immediately.",
@@ -119,13 +120,24 @@
     "voiceRead": "Read instructions aloud",
     "voiceInput": "Speak address / details",
     "nearestHospitals": "Nearest hospitals with live bed availability",
-    "preAlertHospital": "Pre-alert hospital staff on WhatsApp",
+    "preAlertHospital": "Pre-alert via Telegram",
     "oneTapRequest": "One-tap Request Bed"
   },
   "reports": {
     "multiQrTitle": "Multi-Report Bundle QR (1 QR for multiple reports)",
     "selectReports": "Select reports to include in 1 QR",
     "generateBundleQr": "Generate 1 QR for selected reports"
+  },
+  "voice": {
+    "voiceCommand": "Voice Nav",
+    "listening": "Listening...",
+    "commands": "Commands",
+    "hide": "Hide",
+    "togglePanel": "Toggle voice command options",
+    "panelTitle": "Voice Navigation & Hospital Search",
+    "tapToSpeak": "Tap & Speak Command",
+    "stopListening": "Stop Listening",
+    "trySaying": "Try saying or tapping:"
   },
   "errors": {
     "required": "This field is required.",

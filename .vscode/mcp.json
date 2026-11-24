@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "abdm-docs": {
+      "type": "http",
+      "url": "https://docs.abdm.gov.in/mcp"
+    }
+  }
+}

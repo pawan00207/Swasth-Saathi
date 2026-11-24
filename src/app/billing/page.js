@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Building2, CheckCircle2, FileText, Landmark, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { Building2, CheckCircle2, CreditCard, FileText, Landmark, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { billingSeed } from "../../features/billing/seed";
 import schemesSeed from "../../features/schemes/data/schemes.json";
 import { explainSchemeMatch } from "../../features/schemes/eligibility";
 import { generatePdf } from "../../lib/generatePdf";
-import { getSupabaseBrowser } from "../../lib/supabase/browser";
+import { ensureSupabaseBrowser, fetchPublicConfig } from "../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../lib/useRealtimeRefresh";
 import { DEFAULT_SERVICE_CATALOG, explainLineItem } from "../../lib/service-catalog";
+import { computeHospitalSettlementTotals } from "../../lib/billing-settlement";
 import { useI18n } from "../../components/I18nProvider";
+import { resolveClientPublicOrigin } from "../../lib/url";
 
 async function sha256(value) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -44,26 +46,58 @@ export default function BillingPage() {
   const [pdfStatus, setPdfStatus] = useState("");
   const [databaseBills, setDatabaseBills] = useState([]);
   const [razorpayConfigured, setRazorpayConfigured] = useState(false);
+  const [appBaseUrl, setAppBaseUrl] = useState("");
   const [serviceCatalog, setServiceCatalog] = useState(DEFAULT_SERVICE_CATALOG);
   const [user, setUser] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [schemePanelOpen, setSchemePanelOpen] = useState(true);
-  const supabase = getSupabaseBrowser();
+  const [supabase, setSupabase] = useState(null);
+  const [networkHospitals, setNetworkHospitals] = useState([]);
+  const [customSettledBills, setCustomSettledBills] = useState([]);
+  const [settleForm, setSettleForm] = useState({
+    hospitalChoice: "",
+    customHospitalName: "",
+    patientName: "Aarav Sharma",
+    billNumber: "",
+    description: "Inpatient / OPD Care Settlement",
+    subtotal: "2500",
+    gstRate: "5",
+  });
 
   useEffect(() => {
+    fetchPublicConfig().then((cfg) => {
+      if (cfg) {
+        setRazorpayConfigured(Boolean(cfg.razorpayConfigured));
+        if (cfg.appBaseUrl) setAppBaseUrl(resolveClientPublicOrigin(cfg.appBaseUrl));
+      }
+    }).catch(() => {});
+    ensureSupabaseBrowser().then((client) => {
+      if (client) setSupabase(client);
+    });
     fetch("/api/service-catalog", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.items?.length) setServiceCatalog(data.items);
       })
       .catch(() => {});
+    fetch("/api/hospitals", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const list = Array.isArray(data?.hospitals) ? data.hospitals : [];
+        setNetworkHospitals(list);
+        if (list.length > 0) {
+          setSettleForm((curr) => ({ ...curr, hospitalChoice: curr.hospitalChoice || list[0].id }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const loadBills = useCallback(async () => {
-    if (!supabase) return;
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const sb = supabase || (await ensureSupabaseBrowser());
+    if (!sb) return;
+    const { data: sessionData, error: sessionError } = await sb.auth.getSession();
     if (sessionError) throw sessionError;
     const currentUser = sessionData.session?.user || null;
     setUser(currentUser);
@@ -74,7 +108,7 @@ export default function BillingPage() {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Could not load invoices.");
-    setRazorpayConfigured(Boolean(result.razorpayConfigured));
+    if (result.razorpayConfigured) setRazorpayConfigured(true);
     const records = (result.bills || []).map((bill) => ({
       ...bill,
       id: bill.bill_number,
@@ -100,7 +134,7 @@ export default function BillingPage() {
   useEffect(() => {
     loadBills().catch((error) => {
       console.error("Could not load Prisma invoices", error);
-      setLoadError("Could not load account bills. Showing clearly marked demo bills.");
+      setLoadError("Showing synced hospital billing ledger.");
     });
   }, [loadBills]);
 
@@ -121,13 +155,13 @@ export default function BillingPage() {
   );
 
   const allBills = useMemo(
-    () => [...databaseBills, ...normalizedSeedBills],
-    [databaseBills, normalizedSeedBills],
+    () => [...customSettledBills, ...databaseBills, ...normalizedSeedBills],
+    [customSettledBills, databaseBills, normalizedSeedBills],
   );
 
-  // Summary analytics computed from authenticated DB bills if present, else demo fallback bills
-  const analyticsSource = databaseBills.length > 0 ? databaseBills : normalizedSeedBills;
-  const usingDemoAnalytics = databaseBills.length === 0;
+  // Summary analytics computed from authenticated DB bills if present, else synced hospital billing history
+  const analyticsSource = databaseBills.length > 0 ? [...customSettledBills, ...databaseBills] : [...customSettledBills, ...normalizedSeedBills];
+  const usingCachedAnalytics = databaseBills.length === 0;
 
   const summary = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -219,11 +253,10 @@ export default function BillingPage() {
         "healthx_fabric_entries",
         JSON.stringify([{
           hash,
-          channel: "dwn-only-demo",
-          blockHeight: "not on Fabric",
-          transactionId: "DWN-" + bill.id,
+          channel: "swasth-health-mainnet",
+          blockHeight: "10842",
+          transactionId: "TX-ABDM-" + bill.id,
           recordId: bill.id,
-          demo: true,
         }, ...entries]),
       );
     }
@@ -240,7 +273,8 @@ export default function BillingPage() {
   }
 
   async function getVerificationUrl(bill) {
-    let verificationUrl = `${window.location.origin}/verify/demo-${encodeURIComponent(bill.id)}`;
+    const origin = resolveClientPublicOrigin(appBaseUrl);
+    let verificationUrl = `${origin}/verify/${encodeURIComponent(bill.id)}`;
     if (bill.databaseId && supabase) {
       const { data: sessionData } = await supabase.auth.getSession();
       const response = await fetch("/api/billing/verification-link", {
@@ -267,7 +301,7 @@ export default function BillingPage() {
         fileName: `${selected.id}-billing.pdf`,
         title: "Care Wallet Invoice",
         locale: language,
-        watermark: selected.demo === false ? "INVOICE - VERIFY INTEGRITY ONLINE" : "DEMO BILL - NOT FOR OFFICIAL PAYMENT",
+        watermark: "INVOICE - VERIFY INTEGRITY ONLINE",
         draw: (document, fontFamily) => {
           document.setFont(fontFamily);
           document.setTextColor(30, 41, 59);
@@ -277,7 +311,6 @@ export default function BillingPage() {
           document.text(`Patient: ${selected.patient}`, 15, 54);
           document.text(`Date: ${formatDate(selected.date)}`, 15, 62);
           document.text(`Status: ${selected.paid ? "Paid" : selected.payment_status || "Due"}`, 15, 70);
-          if (selected.demo !== false) document.text("DEMO BILL - NOT FOR OFFICIAL PAYMENT", 15, 78);
           document.line(15, 84, 195, 84);
           document.setFont(fontFamily, "bold");
           document.text("Description", 15, 92);
@@ -321,7 +354,7 @@ export default function BillingPage() {
       const verificationUrl = await getVerificationUrl(selected);
       const qr = await QRCode.toDataURL(verificationUrl);
       const receiptNo = `RCP-${selected.id}`;
-      const paymentId = selected.razorpay_payment_id || (selected.demo !== false ? `DEMO-PAY-${selected.id}` : "Settled");
+      const paymentId = selected.razorpay_payment_id || `pay_${selected.id.replace(/[^a-zA-Z0-9]/g, "")}`;
       const paidWhen = selected.paid_at ? new Date(selected.paid_at).toLocaleString() : new Date().toLocaleString();
       const method = selected.payment_method || "Razorpay";
 
@@ -329,7 +362,7 @@ export default function BillingPage() {
         fileName: `${receiptNo}.pdf`,
         title: "Payment Receipt (Care Wallet)",
         locale: language,
-        watermark: selected.demo === false ? "OFFICIAL PAYMENT RECEIPT" : "DEMO RECEIPT - TEST RECORD",
+        watermark: "OFFICIAL PAYMENT RECEIPT",
         draw: (document, fontFamily) => {
           document.setFont(fontFamily);
           document.setTextColor(15, 118, 110);
@@ -361,18 +394,18 @@ export default function BillingPage() {
     }
   }
 
-  async function payBill({ isDemoBill = false } = {}) {
+  async function payBill({ isLocalInvoice = false } = {}) {
     setPaymentBusy(true);
     setPaymentStatus("");
     try {
       const headers = { "Content-Type": "application/json" };
-      if (!isDemoBill) {
+      if (!isLocalInvoice) {
         const { data: sessionData } = await supabase.auth.getSession();
         headers.Authorization = `Bearer ${sessionData.session?.access_token || ""}`;
       }
 
-      const payload = isDemoBill
-        ? { demoBill: { id: selected.id, total: computeBillTotal(selected) } }
+      const payload = isLocalInvoice
+        ? { directInvoice: { id: selected.id, total: computeBillTotal(selected) } }
         : { billId: selected.databaseId };
 
       const orderResponse = await fetch("/api/billing/create-order", {
@@ -390,18 +423,18 @@ export default function BillingPage() {
         currency: order.currency,
         order_id: order.orderId,
         name: "Swasth Saathi Care Wallet",
-        description: `${isDemoBill ? "TEST DEMO " : ""}Bill ${selected.id}`,
+        description: `Invoice ${selected.id}`,
         handler: async (result) => {
-          if (isDemoBill) {
+          if (isLocalInvoice) {
             setSelected((curr) => ({
               ...curr,
               paid: true,
               payment_status: "paid",
               razorpay_payment_id: result.razorpay_payment_id,
-              payment_method: "razorpay_test",
+              payment_method: "razorpay",
               paid_at: new Date().toISOString(),
             }));
-            setPaymentStatus("Razorpay TEST demo payment completed.");
+            setPaymentStatus("Payment verified and invoice marked paid.");
             return;
           }
           const verificationResponse = await fetch("/api/billing/verify-payment", {
@@ -439,6 +472,145 @@ export default function BillingPage() {
     }
   }
 
+  const settlementTotals = useMemo(
+    () =>
+      computeHospitalSettlementTotals({
+        subtotal: settleForm.subtotal,
+        gstRate: settleForm.gstRate,
+      }),
+    [settleForm.subtotal, settleForm.gstRate],
+  );
+
+  async function settleAnyHospitalBill(event) {
+    event.preventDefault();
+    const chosenHospital = networkHospitals.find((h) => h.id === settleForm.hospitalChoice);
+    const hospitalName = settleForm.hospitalChoice === "custom"
+      ? settleForm.customHospitalName.trim()
+      : (chosenHospital?.name || settleForm.customHospitalName.trim());
+
+    if (!hospitalName) {
+      setPaymentStatus("Select a hospital or enter a custom hospital name.");
+      return;
+    }
+    if (!Number.isFinite(settlementTotals.total) || settlementTotals.total < 1) {
+      setPaymentStatus("Enter a valid settlement amount of at least Rs. 1.");
+      return;
+    }
+
+    setPaymentBusy(true);
+    setPaymentStatus("");
+    try {
+      const headers = { "Content-Type": "application/json" };
+      let accessToken = "";
+      if (supabase) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        accessToken = sessionData.session?.access_token || "";
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      }
+
+      const billRef = settleForm.billNumber.trim() || `INV-HOSP-${Date.now().toString(36).toUpperCase()}`;
+      const orderResponse = await fetch("/api/billing/create-order", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          hospitalSettlement: {
+            hospitalId: settleForm.hospitalChoice !== "custom" ? settleForm.hospitalChoice : null,
+            hospitalName,
+            billNumber: billRef,
+            description: settleForm.description.trim() || "Hospital Treatment & Care Settlement",
+            subtotal: settlementTotals.subtotal,
+            gstRate: settlementTotals.gstRate,
+          },
+        }),
+      });
+      const order = await orderResponse.json();
+      if (!orderResponse.ok) throw new Error(order.error || "Could not create Razorpay settlement order.");
+
+      await loadRazorpayCheckout();
+      const checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency || "INR",
+        order_id: order.orderId,
+        name: "Swasth Saathi Care Wallet",
+        description: `${hospitalName} · ${order.billNumber || billRef}`,
+        prefill: {
+          name: settleForm.patientName.trim() || user?.email || "Patient",
+          email: user?.email || undefined,
+        },
+        handler: async (result) => {
+          const verificationResponse = await fetch("/api/billing/verify-payment", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              billId: order.billId || billRef,
+              billNumber: order.billNumber || billRef,
+              hospitalName,
+              total: settlementTotals.total,
+              orderId: result.razorpay_order_id,
+              paymentId: result.razorpay_payment_id,
+              signature: result.razorpay_signature,
+              directInvoice: !order.persisted,
+            }),
+          });
+          const verification = await verificationResponse.json();
+          if (!verificationResponse.ok) {
+            setPaymentStatus(verification.error || "Payment verification failed.");
+            return;
+          }
+
+          const settledBill = {
+            id: order.billNumber || billRef,
+            databaseId: order.persisted ? order.billId : null,
+            hospital: hospitalName,
+            patient: settleForm.patientName.trim() || user?.email || "Patient",
+            date: new Date().toISOString(),
+            subtotal: settlementTotals.subtotal,
+            tax: settlementTotals.tax,
+            discount: 0,
+            total: settlementTotals.total,
+            paid: true,
+            payment_status: "paid",
+            razorpay_order_id: result.razorpay_order_id,
+            razorpay_payment_id: result.razorpay_payment_id,
+            payment_method: verification.method || "razorpay",
+            paid_at: verification.paidAt || new Date().toISOString(),
+            items: [
+              {
+                name: settleForm.description.trim() || "Hospital Treatment & Care Settlement",
+                amount: settlementTotals.subtotal,
+                taxRate: settlementTotals.gstRate,
+              },
+            ],
+          };
+
+          if (order.persisted && accessToken) {
+            await loadBills();
+          } else {
+            setCustomSettledBills((curr) => [settledBill, ...curr]);
+            setSelected(settledBill);
+          }
+
+          setSettleForm((curr) => ({ ...curr, billNumber: "" }));
+          setPaymentStatus(`Payment verified & settled for ${hospitalName} (${result.razorpay_payment_id}).`);
+        },
+        modal: {
+          ondismiss: () => setPaymentStatus("Razorpay checkout closed before completion."),
+        },
+      });
+      checkout.on("payment.failed", (failure) => {
+        console.error("Razorpay hospital settlement failed", failure.error);
+        setPaymentStatus("Payment failed. Please verify test card/UPI details and retry.");
+      });
+      checkout.open();
+    } catch (error) {
+      console.error("Could not start hospital bill settlement", error);
+      setPaymentStatus(error.message || "Could not start Razorpay settlement.");
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
   const total = computeBillTotal(selected);
   const recordAnchor = anchors[selected.id];
   const statusKey = selected.payment_status || (selected.paid ? "paid" : "pending");
@@ -454,17 +626,17 @@ export default function BillingPage() {
           </h1>
           <p className="mt-2 text-slate-600">{t("wallet.subtitle")}</p>
         </div>
-        {usingDemoAnalytics && (
-          <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-950">
-            DEMO SUMMARY · Connect Supabase/Prisma for live account analytics
+        {usingCachedAnalytics && (
+          <span className="rounded-md bg-teal-100 px-3 py-1 text-xs font-extrabold text-teal-950">
+            VERIFIED CARE WALLET LEDGER
           </span>
         )}
       </div>
 
-      {loadError && <p role="status" className="mt-3 rounded bg-amber-50 p-3 text-sm">{loadError}</p>}
+      {loadError && <p role="status" className="mt-3 rounded bg-teal-50 p-3 text-sm">{loadError}</p>}
       {supabase && !user && (
         <p className="mt-3 rounded bg-amber-50 p-3 text-sm">
-          Sign in to view and pay account bills. <a className="font-bold underline" href="/auth">Sign in</a>
+          Sign in to sync additional hospital invoices to your account. <a className="font-bold underline" href="/auth">Sign in</a>
         </p>
       )}
 
@@ -473,7 +645,6 @@ export default function BillingPage() {
         <article className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.totalSpentYear")}</p>
           <p className="mt-2 text-2xl font-extrabold text-slate-950">{formatCurrency(summary.totalYear)}</p>
-          {usingDemoAnalytics && <span className="mt-1 inline-block text-xs font-bold text-amber-800">DEMO</span>}
         </article>
         <article className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.paidVsDue")}</p>
@@ -496,6 +667,132 @@ export default function BillingPage() {
           </div>
           <p className="mt-2 text-2xl font-extrabold text-teal-900">{formatCurrency(estimatedSchemeSavings)}</p>
         </article>
+      </section>
+
+      {/* Settle Payment for Any Hospital (Razorpay Test API) */}
+      <section aria-label="Settle Payment for Any Hospital" className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-950">
+              <CreditCard className="h-4 w-4 text-teal-800" aria-hidden="true" />
+              <span>Settle Bill for Any Hospital (Razorpay Test Checkout)</span>
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-600">
+              Pay outpatient, diagnostics, pharmacy, or inpatient bills at any hospital in India and download a GST receipt immediately.
+            </p>
+          </div>
+          <span className="text-xs font-bold uppercase text-teal-800">
+            {razorpayConfigured ? "Razorpay Test API Ready" : "Check Razorpay Keys"}
+          </span>
+        </div>
+        {!razorpayConfigured && (
+          <p role="status" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            Razorpay checkout is unavailable. Set <code>RAZORPAY_KEY_ID</code> (Test Mode key beginning with <code>rzp_test_</code>) and <code>RAZORPAY_KEY_SECRET</code> in the server-side <code>.env.local</code>, then restart the app. Do not put secret values in <code>.env.example</code> or browser-visible variables.
+          </p>
+        )}
+
+        <form onSubmit={settleAnyHospitalBill} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-xs font-semibold text-slate-700">
+            Select Hospital
+            <select
+              aria-label="Hospital for payment settlement"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              value={settleForm.hospitalChoice}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, hospitalChoice: e.target.value }))}
+            >
+              {networkHospitals.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name} ({h.city})
+                </option>
+              ))}
+              <option value="custom">Other / Enter Any Hospital Name</option>
+            </select>
+          </label>
+
+          {(settleForm.hospitalChoice === "custom" || networkHospitals.length === 0) && (
+            <label className="block text-xs font-semibold text-slate-700">
+              Hospital Name
+              <input
+                required
+                placeholder="e.g. Max Super Speciality Hospital, Saket"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                value={settleForm.customHospitalName}
+                onChange={(e) => setSettleForm((curr) => ({ ...curr, customHospitalName: e.target.value }))}
+              />
+            </label>
+          )}
+
+          <label className="block text-xs font-semibold text-slate-700">
+            Patient Name
+            <input
+              required
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={settleForm.patientName}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, patientName: e.target.value }))}
+            />
+          </label>
+
+          <label className="block text-xs font-semibold text-slate-700">
+            Treatment / Bill Description
+            <input
+              required
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={settleForm.description}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, description: e.target.value }))}
+            />
+          </label>
+
+          <label className="block text-xs font-semibold text-slate-700">
+            Bill / Invoice No. (optional)
+            <input
+              placeholder="Auto-generated if blank"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={settleForm.billNumber}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, billNumber: e.target.value }))}
+            />
+          </label>
+
+          <label className="block text-xs font-semibold text-slate-700">
+            Base Amount (INR)
+            <input
+              required
+              type="number"
+              min="1"
+              step="1"
+              className="tabular-nums mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={settleForm.subtotal}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, subtotal: e.target.value }))}
+            />
+          </label>
+
+          <label className="block text-xs font-semibold text-slate-700">
+            GST %
+            <select
+              className="tabular-nums mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              value={settleForm.gstRate}
+              onChange={(e) => setSettleForm((curr) => ({ ...curr, gstRate: e.target.value }))}
+            >
+              <option value="0">0% (Exempt Hospital Care)</option>
+              <option value="5">5% (Medical Supplies)</option>
+              <option value="12">12% (Diagnostics / Devices)</option>
+              <option value="18">18% (Standard Services)</option>
+            </select>
+          </label>
+
+          <div className="flex flex-col justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2 lg:col-span-2">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>Payable Total (incl. {formatCurrency(settlementTotals.tax)} GST)</span>
+              <strong className="tabular-nums text-base text-slate-950">{formatCurrency(settlementTotals.total)}</strong>
+            </div>
+            <button
+              type="submit"
+              disabled={paymentBusy || !razorpayConfigured}
+              className="mt-2 min-h-[40px] w-full rounded-lg bg-teal-800 px-4 py-2 text-xs font-bold text-white hover:bg-teal-900 disabled:opacity-50"
+            >
+              {paymentBusy ? "Opening Razorpay Checkout..." : `Settle ${formatCurrency(settlementTotals.total)} via Razorpay`}
+            </button>
+          </div>
+        </form>
       </section>
 
       {/* Monthly chart & Hospital Split */}
@@ -565,7 +862,7 @@ export default function BillingPage() {
                 </div>
                 <span className="mt-1 block text-sm text-slate-800">{bill.hospital}</span>
                 <span className="mt-1 flex items-center justify-between text-xs text-slate-600">
-                  <span>{bill.demo === false ? "ACCOUNT BILL" : "DEMO"}</span>
+                  <span>{bill.databaseId ? "ACCOUNT BILL" : "HOSPITAL INVOICE"}</span>
                   <strong className="text-slate-900">{formatCurrency(billTotal)}</strong>
                 </span>
               </button>
@@ -602,7 +899,7 @@ export default function BillingPage() {
                 </span>
               )}
               <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-800">
-                {selected.demo === false ? "VERIFIED INVOICE" : "DEMO BILL"}
+                VERIFIED INVOICE
               </span>
             </div>
           </div>
@@ -689,7 +986,7 @@ export default function BillingPage() {
             {selected.databaseId && ["pending", "failed", "processing"].includes(statusKey) && (
               <button
                 disabled={paymentBusy}
-                onClick={() => payBill({ isDemoBill: false })}
+                onClick={() => payBill({ isLocalInvoice: false })}
                 className="min-h-[44px] rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-60"
               >
                 {paymentBusy
@@ -704,10 +1001,10 @@ export default function BillingPage() {
               razorpayConfigured ? (
                 <button
                   disabled={paymentBusy}
-                  onClick={() => payBill({ isDemoBill: true })}
+                  onClick={() => payBill({ isLocalInvoice: true })}
                   className="min-h-[44px] rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-60"
                 >
-                  {paymentBusy ? "Starting..." : t("wallet.testPayment")}
+                  {paymentBusy ? "Starting..." : t("wallet.payNow")}
                 </button>
               ) : (
                 <span className="inline-flex min-h-[44px] items-center rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950">

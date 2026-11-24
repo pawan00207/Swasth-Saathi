@@ -140,7 +140,7 @@ export async function sendWhatsAppMessage({ to, body, messageType = "notificatio
     return { ok: false, status: "rate-limited", provider };
   }
   if (!isWhatsAppConfigured(provider)) {
-    await logMessage(prisma, { direction: "outbound", provider, recipientMask, messageType, status: "demo-skipped" });
+    await logMessage(prisma, { direction: "outbound", provider, recipientMask, messageType, status: "queued-unconfigured" });
     return { ok: false, status: "unconfigured", provider };
   }
 

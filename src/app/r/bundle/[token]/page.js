@@ -96,7 +96,7 @@ export default function PublicBundleReportsPage({ params }) {
           </p>
         </div>
       )}
-      <p className="mt-6 text-sm text-slate-600">Demo project, not a substitute for medical advice.</p>
+      <p className="mt-6 text-sm text-slate-600">Swasth Saathi Care Portal — not a substitute for professional medical advice.</p>
     </main>
   );
 }

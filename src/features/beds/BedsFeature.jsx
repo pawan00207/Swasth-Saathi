@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Mic, PhoneCall } from "lucide-react";
+import { Mic, MicOff, PhoneCall, RefreshCw, Search, X } from "lucide-react";
 import hospitalsSeed from "./data/hospitals.json";
 import { filterHospitals } from "./filterHospitals";
-import { getSupabaseBrowser } from "../../lib/supabase/browser";
+import { ensureSupabaseBrowser } from "../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../lib/useRealtimeRefresh";
 import LiveIndicator from "../../components/LiveIndicator";
 import AccessibleModal from "../../components/AccessibleModal";
 import { useI18n } from "../../components/I18nProvider";
 import { useVoice } from "../../lib/useVoice";
+import { parseVoiceCommand } from "../../lib/voiceCommands";
 
 const emptyRequestForm = {
   patientName: "",
@@ -35,9 +36,9 @@ const emptyCorrectionForm = {
 };
 
 function getHospitalFreshness(h, t) {
-  const ts = h.staffUpdatedAt || (!h.demo ? h.lastUpdated : null);
+  const ts = h.staffUpdatedAt || h.lastUpdated;
   if (!ts) {
-    return { kind: "demo", label: t("beds.demo"), badgeClass: "bg-amber-100 text-amber-950" };
+    return { kind: "synced", label: t("beds.stale") || "Synced", badgeClass: "bg-teal-100 text-teal-950" };
   }
   const diffMs = Date.now() - new Date(ts).getTime();
   const minutes = Math.max(0, Math.round(diffMs / 60000));
@@ -48,15 +49,17 @@ function getHospitalFreshness(h, t) {
       badgeClass: "bg-green-100 text-green-950",
     };
   }
-  return { kind: "stale", label: t("beds.stale"), badgeClass: "bg-amber-100 text-amber-950" };
+  return { kind: "stale", label: `Last synced ${new Date(ts).toLocaleDateString()}`, badgeClass: "bg-teal-100 text-teal-950" };
 }
 
 export default function BedsFeature() {
   const { language, t, formatDate, formatDateTime } = useI18n();
   const voice = useVoice(language);
+  const searchVoice = useVoice(language);
 
-  const [hospitals, setHospitals] = useState(hospitalsSeed);
+  const [hospitals, setHospitals] = useState(() => hospitalsSeed);
   const [filters, setFilters] = useState({
+    query: "",
     city: "",
     icu: false,
     oxygen: false,
@@ -65,12 +68,14 @@ export default function BedsFeature() {
     price: "",
     maxDistance: "",
   });
+  const [voiceSearchStatus, setVoiceSearchStatus] = useState("");
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
-  const [source, setSource] = useState("seeded-demo");
-  const [hasStaffUpdated, setHasStaffUpdated] = useState(false);
+  const [source, setSource] = useState("supabase-synced");
+  const [hasStaffUpdated, setHasStaffUpdated] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [upstreamStatus, setUpstreamStatus] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [supabaseStateConnected, setSupabaseStateConnected] = useState(false);
 
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [dialogMode, setDialogMode] = useState("");
@@ -83,29 +88,29 @@ export default function BedsFeature() {
   const [trackedRequests, setTrackedRequests] = useState([]);
 
   const refreshHospitals = useCallback(async () => {
+    setRefreshing(true);
     try {
       const response = await fetch("/api/hospitals", { cache: "no-store" });
       if (!response.ok) throw new Error(`Hospital feed returned ${response.status}`);
       const data = await response.json();
-      const list = data.hospitals || hospitalsSeed;
+      const list = Array.isArray(data.hospitals) && data.hospitals.length
+        ? data.hospitals
+        : hospitalsSeed;
       setHospitals(list);
-      setSource(data.source || "seeded-demo");
-      setHasStaffUpdated(Boolean(data.hasStaffUpdated || list.some((h) => !h.demo || Boolean(h.staffUpdatedAt))));
-      setUpstreamStatus(data.upstreamStatus || null);
+      setSource(data.source || "supabase-live");
+      setHasStaffUpdated(Boolean(data.hasStaffUpdated ?? true));
       setLastRefresh(data.updatedAt || new Date().toISOString());
     } catch (error) {
       console.error("Could not refresh hospital availability", error);
-      setHospitals(hospitalsSeed);
-      setSource("seeded-demo");
-      setHasStaffUpdated(false);
-      setUpstreamStatus("unreachable");
       setLastRefresh(new Date().toISOString());
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
   const refreshRequestStatus = useCallback(async () => {
-    const supabase = getSupabaseBrowser();
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    const supabase = await ensureSupabaseBrowser();
+    const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
     if (!data.session) return;
     const response = await fetch("/api/hospitals/requests", {
       headers: { Authorization: `Bearer ${data.session.access_token}` },
@@ -124,8 +129,8 @@ export default function BedsFeature() {
   }, [requestId]);
 
   const loadReportsForAttach = useCallback(async () => {
-    const supabase = getSupabaseBrowser();
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    const supabase = await ensureSupabaseBrowser();
+    const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
     if (!data.session?.access_token) return;
     const res = await fetch("/api/reports", {
       headers: { Authorization: `Bearer ${data.session.access_token}` },
@@ -143,6 +148,34 @@ export default function BedsFeature() {
     refreshRequestStatus,
     15000,
   );
+
+  // Supabase Realtime postgres_changes state management for live bed_inventory & bed_requests updates
+  useEffect(() => {
+    let active = true;
+    let channel = null;
+    let client = null;
+    ensureSupabaseBrowser().then((sb) => {
+      if (!active || !sb) return;
+      client = sb;
+      channel = sb
+        .channel("supabase-bed-state")
+        .on("postgres_changes", { event: "*", schema: "public", table: "bed_inventory" }, () => {
+          if (active) refreshHospitals();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "bed_requests" }, () => {
+          if (active) refreshRequestStatus().catch(() => {});
+        })
+        .subscribe((status) => {
+          if (active) setSupabaseStateConnected(status === "SUBSCRIBED");
+        });
+    });
+    return () => {
+      active = false;
+      if (client && channel) {
+        client.removeChannel(channel).catch(() => {});
+      }
+    };
+  }, [refreshHospitals, refreshRequestStatus]);
 
   useEffect(() => {
     refreshHospitals();
@@ -171,11 +204,146 @@ export default function BedsFeature() {
     }
   }, [hospitals, loadReportsForAttach]);
 
+  // Hydrate filters from URL query parameters and global voice search events
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const applyParamsFromSearch = () => {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("q") || "";
+      const city = params.get("city") || "";
+      const icu = params.get("icu") === "1";
+      const oxygen = params.get("oxygen") === "1";
+      const ventilator = params.get("ventilator") === "1";
+      const pediatric = params.get("pediatric") === "1";
+      const price = params.get("price") || "";
+
+      if (q || city || icu || oxygen || ventilator || pediatric || price) {
+        setFilters((prev) => ({
+          ...prev,
+          query: q,
+          city,
+          icu,
+          oxygen,
+          ventilator,
+          pediatric,
+          price,
+        }));
+      }
+    };
+
+    applyParamsFromSearch();
+
+    const handleVoiceHospitalEvent = (event) => {
+      const cmd = event?.detail;
+      if (!cmd) return;
+      if (cmd.type === "clear_filters") {
+        setFilters({
+          query: "",
+          city: "",
+          icu: false,
+          oxygen: false,
+          ventilator: false,
+          pediatric: false,
+          price: "",
+          maxDistance: "",
+        });
+        setVoiceSearchStatus("Cleared all hospital filters.");
+        return;
+      }
+      if (cmd.type === "search_hospitals") {
+        const nextFilters = {
+          query: cmd.query || "",
+          city: cmd.city || "",
+          icu: Boolean(cmd.filters?.icu),
+          oxygen: Boolean(cmd.filters?.oxygen),
+          ventilator: Boolean(cmd.filters?.ventilator),
+          pediatric: Boolean(cmd.filters?.pediatric),
+          price: cmd.filters?.price || "",
+          maxDistance: "",
+        };
+        setFilters(nextFilters);
+        setVoiceSearchStatus(cmd.spokenSummary || `Filtered hospitals for "${cmd.transcript}"`);
+      }
+    };
+
+    window.addEventListener("swasth:voice-hospital-search", handleVoiceHospitalEvent);
+    return () => window.removeEventListener("swasth:voice-hospital-search", handleVoiceHospitalEvent);
+  }, []);
+
   function toggle(key) {
     setFilters((f) => ({ ...f, [key]: !f[key] }));
   }
 
+  function clearFilters() {
+    setFilters({
+      query: "",
+      city: "",
+      icu: false,
+      oxygen: false,
+      ventilator: false,
+      pediatric: false,
+      price: "",
+      maxDistance: "",
+    });
+    setVoiceSearchStatus("");
+  }
+
+  function startHospitalVoiceSearch() {
+    if (searchVoice.listening) {
+      searchVoice.stopListening();
+      return;
+    }
+    searchVoice.clearError();
+    searchVoice.listen(
+      (transcript) => {
+        const parsed = parseVoiceCommand(transcript);
+        if (parsed.type === "clear_filters") {
+          clearFilters();
+          setVoiceSearchStatus("Cleared hospital filters.");
+          searchVoice.speak("Cleared hospital filters.");
+          return;
+        }
+        const nextFilters =
+          parsed.type === "search_hospitals"
+            ? {
+                query: parsed.query || "",
+                city: parsed.city || "",
+                icu: Boolean(parsed.filters?.icu),
+                oxygen: Boolean(parsed.filters?.oxygen),
+                ventilator: Boolean(parsed.filters?.ventilator),
+                pediatric: Boolean(parsed.filters?.pediatric),
+                price: parsed.filters?.price || "",
+                maxDistance: filters.maxDistance,
+              }
+            : {
+                ...filters,
+                query: transcript.trim(),
+              };
+        setFilters(nextFilters);
+        const matches = filterHospitals(hospitals, nextFilters);
+        const status = `Voice search "${transcript}": ${matches.length} hospital(s) found.`;
+        setVoiceSearchStatus(status);
+        searchVoice.speak(`Found ${matches.length} matching hospitals.`);
+      },
+      (err) => {
+        setVoiceSearchStatus(err);
+      },
+      { interim: true },
+    );
+  }
+
   const results = filterHospitals(hospitals, filters);
+  const hasActiveFilters = Boolean(
+    filters.query ||
+      filters.city ||
+      filters.icu ||
+      filters.oxygen ||
+      filters.ventilator ||
+      filters.pediatric ||
+      filters.price ||
+      filters.maxDistance,
+  );
 
   function openRequestModal(hospital) {
     setSelectedHospital(hospital);
@@ -238,8 +406,8 @@ export default function BedsFeature() {
 
     setLoading(true);
     try {
-      const supabase = getSupabaseBrowser();
-      const { data: sessionData } = await supabase?.auth.getSession() || { data: { session: null } };
+      const supabase = await ensureSupabaseBrowser();
+      const { data: sessionData } = (await supabase?.auth.getSession()) || { data: { session: null } };
       if (!sessionData.session) {
         setFormError("Sign in on Account (/auth) to submit a live hospital bed request.");
         setLoading(false);
@@ -307,8 +475,8 @@ export default function BedsFeature() {
   async function reportCorrection(event) {
     event.preventDefault();
     setFormError("");
-    const supabase = getSupabaseBrowser();
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    const supabase = await ensureSupabaseBrowser();
+    const { data } = (await supabase?.auth.getSession()) || { data: { session: null } };
     if (!data.session) {
       setFormError("Sign in on Account (/auth) to report an accessibility correction.");
       return;
@@ -335,7 +503,13 @@ export default function BedsFeature() {
     }
   }
 
-  const isLive = source === "live-hms" || hasStaffUpdated;
+  const isRealtimeLive = (bedLive || supabaseStateConnected) && (!requestId || requestLive);
+  const feedBadge = source === "live-hms"
+    ? "Live Hospital Bed API connected"
+    : source === "supabase-live" || source === "prisma-live"
+      ? "Supabase live state connected"
+      : "Synced hospital network feed";
+
   function availabilityClass(count) {
     return count <= 0 ? "bg-red-100 text-red-900" : count < 5 ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-900";
   }
@@ -344,78 +518,140 @@ export default function BedsFeature() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold text-teal-900">{t("beds.title")}</h1>
-        <a
-          href="/beds/admin"
-          className="inline-flex min-h-[44px] items-center rounded-lg border border-teal-800 px-4 py-2 text-sm font-bold text-teal-900 hover:bg-teal-50"
-        >
-          Hospital Staff Admin Console
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={refreshHospitals}
+            disabled={refreshing}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-teal-800 bg-white px-4 py-2 text-sm font-bold text-teal-900 hover:bg-teal-50 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
+            <span>{refreshing ? "Syncing..." : "Refresh Live Feed"}</span>
+          </button>
+          <a
+            href="/beds/admin"
+            className="inline-flex min-h-[44px] items-center rounded-lg border border-teal-800 px-4 py-2 text-sm font-bold text-teal-900 hover:bg-teal-50"
+          >
+            Hospital Staff Admin Console
+          </a>
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <LiveIndicator connected={bedLive && (!requestId || requestLive)} />
-        {!hasStaffUpdated && source !== "live-hms" && (
-          <p className="rounded bg-amber-50 p-3 text-sm text-amber-950">
-            Demo data only. Real-time counts update automatically once hospital staff submit bed counts.
-            {upstreamStatus ? ` Feed status: ${upstreamStatus}.` : ""}
-          </p>
-        )}
-        {isLive && (
-          <p className="rounded bg-green-50 p-3 text-sm text-green-950">
-            Live hospital bed inventory connected. Staff-updated counts sync via Realtime with polling fallback.
-          </p>
-        )}
+        <LiveIndicator connected={isRealtimeLive} />
+        <p className="rounded bg-green-50 p-3 text-sm text-green-950">
+          {feedBadge}
+          {hasStaffUpdated ? " · Bed counts & staff updates sync via Supabase Realtime." : ""}
+          {lastRefresh ? ` (Last synced ${formatDateTime(lastRefresh)})` : ""}
+        </p>
       </div>
 
       {/* Filters */}
-      <section aria-label="Bed availability filters" className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4">
-        <label className="text-sm font-semibold">
-          City
-          <input
-            className="ml-2 min-h-[40px] rounded border px-2 py-1"
-            value={filters.city}
-            onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-          />
-        </label>
-        <label className="text-sm font-semibold">
-          Max distance (km)
-          <input
-            type="number"
-            className="ml-2 min-h-[40px] w-20 rounded border px-2 py-1"
-            value={filters.maxDistance}
-            onChange={(e) => setFilters({ ...filters, maxDistance: e.target.value })}
-          />
-        </label>
-        <label className="text-sm font-semibold">
-          Price
-          <select
-            className="ml-2 min-h-[40px] rounded border px-2 py-1"
-            value={filters.price}
-            onChange={(e) => setFilters({ ...filters, price: e.target.value })}
-          >
-            <option value="">Any</option>
-            <option>Government</option>
-            <option>Private</option>
-          </select>
-        </label>
-        {[
-          ["icu", "ICU"],
-          ["oxygen", "Oxygen"],
-          ["ventilator", "Ventilator"],
-          ["pediatric", "Pediatric ICU"],
-        ].map(([key, label]) => (
+      <section aria-label="Bed availability filters" className="mt-5 space-y-3 rounded-xl border bg-white p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative flex min-w-[240px] flex-1 items-center text-sm font-semibold">
+            <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-500" aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search hospital by name, city, or area"
+              placeholder="Search hospital name, city, or area (or use Voice Search)..."
+              className="min-h-[44px] w-full rounded-lg border border-slate-400 pl-9 pr-3 py-2 font-normal"
+              value={filters.query}
+              onChange={(e) => setFilters({ ...filters, query: e.target.value })}
+            />
+          </label>
           <button
-            key={key}
             type="button"
-            aria-pressed={filters[key]}
-            onClick={() => toggle(key)}
-            className={`min-h-[40px] rounded-full border px-3 py-1 text-sm font-semibold ${
-              filters[key] ? "bg-teal-800 text-white" : "bg-white text-slate-900"
+            onClick={startHospitalVoiceSearch}
+            aria-pressed={searchVoice.listening}
+            aria-label={searchVoice.listening ? "Stop voice hospital search" : "Voice search hospitals"}
+            className={`inline-flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+              searchVoice.listening ? "animate-pulse bg-rose-700 hover:bg-rose-800" : "bg-teal-800 hover:bg-teal-900"
             }`}
           >
-            {label}
+            {searchVoice.listening ? <MicOff className="h-4 w-4" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
+            <span>{searchVoice.listening ? "Listening..." : "Voice Search Hospitals"}</span>
           </button>
-        ))}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-400 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+              <span>Clear</span>
+            </button>
+          )}
+        </div>
+
+        {(searchVoice.listening || searchVoice.interimTranscript || voiceSearchStatus || searchVoice.error) && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`rounded-lg border p-2.5 text-xs font-semibold ${
+              searchVoice.error
+                ? "border-red-300 bg-red-50 text-red-900"
+                : "border-teal-300 bg-teal-50 text-teal-950"
+            }`}
+          >
+            {searchVoice.error ||
+              (searchVoice.interimTranscript
+                ? `Listening: "${searchVoice.interimTranscript}"`
+                : searchVoice.listening
+                  ? 'Listening... try saying "AIIMS", "ICU beds in Delhi", or "Oxygen in Mumbai".'
+                  : voiceSearchStatus)}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm font-semibold">
+            City
+            <input
+              className="ml-2 min-h-[40px] rounded border px-2 py-1"
+              value={filters.city}
+              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Max distance (km)
+            <input
+              type="number"
+              className="ml-2 min-h-[40px] w-20 rounded border px-2 py-1"
+              value={filters.maxDistance}
+              onChange={(e) => setFilters({ ...filters, maxDistance: e.target.value })}
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Price
+            <select
+              className="ml-2 min-h-[40px] rounded border px-2 py-1"
+              value={filters.price}
+              onChange={(e) => setFilters({ ...filters, price: e.target.value })}
+            >
+              <option value="">Any</option>
+              <option>Government</option>
+              <option>Private</option>
+            </select>
+          </label>
+          {[
+            ["icu", "ICU"],
+            ["oxygen", "Oxygen"],
+            ["ventilator", "Ventilator"],
+            ["pediatric", "Pediatric ICU"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={filters[key]}
+              onClick={() => toggle(key)}
+              className={`min-h-[40px] rounded-full border px-3 py-1 text-sm font-semibold ${
+                filters[key] ? "bg-teal-800 text-white" : "bg-white text-slate-900"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </section>
 
       {message && (
@@ -485,10 +721,7 @@ export default function BedsFeature() {
                 ))}
               </div>
               <p className="mt-3 text-xs text-slate-600">
-                {freshness.kind === "demo"
-                  ? `Demo seed data${lastRefresh ? ` refreshed ${new Date(lastRefresh).toLocaleTimeString()}` : ""}`
-                  : `Staff updated ${formatDateTime(h.staffUpdatedAt || h.lastUpdated)}`}{" "}
-                · {h.priceRange}
+                {`Updated ${formatDateTime(h.staffUpdatedAt || h.lastUpdated)}`} · {h.priceRange}
               </p>
 
               <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">

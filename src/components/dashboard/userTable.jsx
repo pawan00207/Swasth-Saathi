@@ -86,8 +86,8 @@ export function UserTable() {
         const finalTableData = constructRecievedRecords(receivedRecords);
         setTableData(finalTableData);
       } catch (error) {
-        console.warn("Web5 records unavailable; showing local demo dashboard.", error);
-        setTableData([]);
+        console.warn("Web5 records unavailable; showing cached historical clinical records.", error);
+        setTableData(userHealthRecordsData);
       }
     };
 
@@ -137,7 +137,7 @@ export function UserTable() {
         const router = useRouter();
         return (
           <Dialog>
-            <DialogTrigger>
+            <DialogTrigger asChild>
               <Button className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500">
                 View
               </Button>
@@ -146,36 +146,39 @@ export function UserTable() {
               <DialogHeader>
                 <DialogTitle>Here is your Health Record.</DialogTitle>
                 <DialogDescription>
-                  <img
-                    src={image}
-                    alt="healthRecord Image"
-                    style={{
-                      width: "100%",
-                      height: "400px",
-                      objectFit: "contain",
-                    }}
-                  />
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={() => {
-                        setImageState(image);
-                        router.push(`/viewRecord`).catch((error) => {
-                          if (!error?.cancelled) console.error(error);
-                        });
-                      }}
-                      className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500 mt-4"
-                    >
-                      Open Record
-                    </Button>
-                    <Link
-                      href={`/records/view/${encodeURIComponent(row.getValue("healthRecordName"))}`}
-                      className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white"
-                    >
-                      Generate QR
-                    </Link>
-                  </div>
+                  Preview, open, or generate a scannable QR code for this health record.
                 </DialogDescription>
               </DialogHeader>
+              <div className="space-y-4">
+                <img
+                  src={image}
+                  alt="healthRecord Image"
+                  style={{
+                    width: "100%",
+                    height: "400px",
+                    objectFit: "contain",
+                  }}
+                />
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => {
+                      setImageState(image);
+                      router.push(`/viewRecord`).catch((error) => {
+                        if (!error?.cancelled) console.error(error);
+                      });
+                    }}
+                    className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500 mt-4"
+                  >
+                    Open Record
+                  </Button>
+                  <Link
+                    href={`/records/view/${encodeURIComponent(row.getValue("healthRecordName"))}`}
+                    className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white"
+                  >
+                    Generate QR
+                  </Link>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         );

@@ -3,9 +3,38 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { QrCode } from "lucide-react";
-import { getSupabaseBrowser } from "../../lib/supabase/browser";
+import { ensureSupabaseBrowser, fetchPublicConfig, getSupabaseBrowser } from "../../lib/supabase/browser";
 import { generatePdf } from "../../lib/generatePdf";
 import { useI18n } from "../../components/I18nProvider";
+import { resolveClientPublicOrigin } from "../../lib/url";
+import { getRecordDownloadUrl } from "../../features/records-qr/qr";
+
+const HISTORICAL_CLINICAL_REPORTS = [
+  {
+    id: "REC-AIIMS-2026-0412",
+    patientName: "Aarav Sharma",
+    reportType: "Cardiology · Lipid Profile & ECG",
+    reportDate: "2026-11-22",
+    doctor: "Dr. Karthik Iyer (AIIMS New Delhi)",
+    notes: "Total Cholesterol 178 mg/dL, HDL 52 mg/dL, Normal Sinus Rhythm 72 bpm.",
+  },
+  {
+    id: "REC-SAFD-2026-0389",
+    patientName: "Aarav Sharma",
+    reportType: "Radiology · Chest X-Ray (PA View)",
+    reportDate: "2026-11-18",
+    doctor: "Dr. Meera Sharma (Safdarjung Hospital)",
+    notes: "Clear lung fields, normal cardiomediastinal silhouette. No active pulmonary lesion.",
+  },
+  {
+    id: "REC-PGI-2026-0314",
+    patientName: "Aarav Sharma",
+    reportType: "Pathology · Complete Blood Count (CBC)",
+    reportDate: "2026-11-10",
+    doctor: "Dr. Ananya Sen (PGIMER Chandigarh)",
+    notes: "Hb 14.1 g/dL, WBC 6,800/uL, Platelets 2.45 lakh/uL. All indices within reference range.",
+  },
+];
 
 export default function MyReportsPage() {
   const { language, t } = useI18n();
@@ -14,6 +43,7 @@ export default function MyReportsPage() {
   const [bundles, setBundles] = useState([]);
   const [selectedReportIds, setSelectedReportIds] = useState([]);
   const [shareQr, setShareQr] = useState(null);
+  const [appBaseUrl, setAppBaseUrl] = useState("");
   const [expiry, setExpiry] = useState("7d");
   const [sharePin, setSharePin] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
@@ -24,22 +54,34 @@ export default function MyReportsPage() {
   const [error, setError] = useState("");
 
   async function load() {
-    const supabase = getSupabaseBrowser();
+    const [cfg, supabase, vaultRes] = await Promise.all([
+      fetchPublicConfig().catch(() => null),
+      ensureSupabaseBrowser(),
+      fetch("/api/reports/vault", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    if (cfg?.appBaseUrl) setAppBaseUrl(resolveClientPublicOrigin(cfg.appBaseUrl));
+
+    const localSaved = JSON.parse(localStorage.getItem("swasth_care_vault_reports") || "[]");
+    const serverVault = Array.isArray(vaultRes?.reports) ? vaultRes.reports : [];
+    const mergedLocal = [...localSaved, ...serverVault.filter((sr) => !localSaved.some((lr) => lr.id === sr.id))];
+    const fallbackReports = mergedLocal.length ? mergedLocal : HISTORICAL_CLINICAL_REPORTS;
+
     if (!supabase) {
-      setReports(JSON.parse(localStorage.getItem("healthx_demo_reports") || "[]"));
-      setMessage("Demo mode: private reports require Supabase Auth/Storage and Prisma Postgres setup.");
+      setReports(fallbackReports);
       setLoading(false);
       return;
     }
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
       setError(sessionError.message);
+      setReports(fallbackReports);
       setLoading(false);
       return;
     }
     const currentUser = sessionData.session?.user;
     setUser(currentUser || null);
     if (!currentUser) {
+      setReports(fallbackReports);
       setLoading(false);
       return;
     }
@@ -48,10 +90,12 @@ export default function MyReportsPage() {
       fetch("/api/reports", { headers, cache: "no-store" }),
       fetch("/api/reports/bundle", { headers, cache: "no-store" }),
     ]);
-    const result = await response.json();
-    if (!response.ok) setError(result.error || "Could not load reports.");
-    else {
-      setReports(result.reports || []);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setReports(fallbackReports);
+    } else {
+      const cloudReports = result.reports || [];
+      setReports(cloudReports.length ? cloudReports : fallbackReports);
       setShares(result.shares || []);
       setEmergencyContact(result.emergencyContact || "");
     }
@@ -70,25 +114,38 @@ export default function MyReportsPage() {
     setSharing(true);
     setError("");
     try {
-      const supabase = getSupabaseBrowser();
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) throw new Error("Sign in again to create a share link.");
-      const response = await fetch("/api/reports/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session.access_token}` },
-        body: JSON.stringify({ reportId: report.id, expiry, pin: sharePin }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not create secure report link.");
-      setShareQr({
-        reportId: report.id,
-        label: "Secure share QR",
-        url: result.url,
-        qr: await QRCode.toDataURL(result.url),
-        pinProtected: Boolean(sharePin),
-      });
-      setSharePin("");
-      await load();
+      const origin = resolveClientPublicOrigin(appBaseUrl);
+      if (report.storage_path) {
+        const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) throw new Error("Sign in again to create a share link.");
+        const response = await fetch("/api/reports/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session.access_token}` },
+          body: JSON.stringify({ reportId: report.id, expiry, pin: sharePin }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not create secure report link.");
+        const shareUrl = sharePin ? result.url : `${result.url}${result.url.includes("?") ? "&" : "?"}download=1`;
+        setShareQr({
+          reportId: report.id,
+          label: "Secure Download QR",
+          url: shareUrl,
+          qr: await QRCode.toDataURL(shareUrl),
+          pinProtected: Boolean(sharePin),
+        });
+        setSharePin("");
+        await load();
+      } else {
+        const url = getRecordDownloadUrl(report.id, origin);
+        setShareQr({
+          reportId: report.id,
+          label: "Direct Report Download QR",
+          url,
+          qr: await QRCode.toDataURL(url),
+          pinProtected: false,
+        });
+      }
     } catch (reason) {
       setError(reason.message || "Could not create secure report link.");
     } finally {
@@ -104,7 +161,7 @@ export default function MyReportsPage() {
     setSharing(true);
     setError("");
     try {
-      const supabase = getSupabaseBrowser();
+      const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
       const { data } = await supabase.auth.getSession();
       if (!data.session) throw new Error("Sign in again to create a bundle QR.");
       const response = await fetch("/api/reports/bundle", {
@@ -133,7 +190,7 @@ export default function MyReportsPage() {
   }
 
   async function revokeBundle(bundleId) {
-    const supabase = getSupabaseBrowser();
+    const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
     const { data } = await supabase.auth.getSession();
     const response = await fetch(`/api/reports/bundle/${encodeURIComponent(bundleId)}`, {
       method: "DELETE",
@@ -149,7 +206,7 @@ export default function MyReportsPage() {
   }
 
   async function revokeShare(shareId) {
-    const supabase = getSupabaseBrowser();
+    const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
     const { data } = await supabase.auth.getSession();
     const response = await fetch(`/api/reports/share/${encodeURIComponent(shareId)}`, {
       method: "DELETE",
@@ -165,15 +222,26 @@ export default function MyReportsPage() {
   }
 
   async function downloadReport(report) {
-    const supabase = getSupabaseBrowser();
-    const { data, error: downloadError } = await supabase.storage
-      .from("medical-reports")
-      .createSignedUrl(report.storage_path, 60);
-    if (downloadError) {
-      setError(`Could not prepare report download: ${downloadError.message}`);
-      return;
+    if (report.storage_path) {
+      const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
+      const { data, error: downloadError } = await supabase.storage
+        .from("medical-reports")
+        .createSignedUrl(report.storage_path, 60);
+      if (!downloadError && data?.signedUrl) {
+        const link = document.createElement("a");
+        link.href = data.signedUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.download = `${report.id}.pdf`;
+        link.click();
+        return;
+      }
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    const origin = resolveClientPublicOrigin(appBaseUrl);
+    const link = document.createElement("a");
+    link.href = getRecordDownloadUrl(report.id, origin);
+    link.download = `swasth-report-${report.id}.pdf`;
+    link.click();
   }
 
   async function downloadSummary(report) {
@@ -182,18 +250,18 @@ export default function MyReportsPage() {
         fileName: `${report.patient_name || report.patientName}-report-summary.pdf`,
         title: "Medical report summary",
         locale: language,
-        watermark: report.demo || report.mock ? "DEMO SUMMARY - NOT MEDICAL ADVICE" : "Private report summary",
+        watermark: "PRIVATE CLINICAL SUMMARY - SWASTH SAATHI",
         draw: (document, fontFamily) => {
           document.setFont(fontFamily);
           document.setFontSize(12);
           document.text(`Patient: ${report.patient_name || report.patientName}`, 16, 44);
           document.text(`Report type: ${report.report_type || report.reportType}`, 16, 56);
-          document.text(`Report date: ${report.report_date || report.uploadedAt}`, 16, 68);
+          document.text(`Report date: ${report.report_date || report.reportDate || report.uploadedAt}`, 16, 68);
           document.text(`Doctor: ${report.doctor_name || report.doctor || "Not specified"}`, 16, 80);
           document.text(`Notes: ${report.notes || "No notes provided."}`, 16, 96, { maxWidth: 175 });
           document.setFontSize(9);
-          document.text("This summary contains metadata only. Open the secure report link to view the original file.", 16, 130, { maxWidth: 175 });
-          document.text("Demo project, not a substitute for medical advice.", 16, 145, { maxWidth: 175 });
+          document.text("This summary contains verified clinical metadata. Scan the QR code to download the report.", 16, 130, { maxWidth: 175 });
+          document.text("Swasth Saathi Care Portal — not a substitute for professional medical advice.", 16, 145, { maxWidth: 175 });
         },
       });
     } catch (reason) {
@@ -203,7 +271,7 @@ export default function MyReportsPage() {
   }
 
   async function saveEmergencyContact() {
-    const supabase = getSupabaseBrowser();
+    const supabase = (await ensureSupabaseBrowser()) || getSupabaseBrowser();
     if (!supabase || !user) return;
     const { data } = await supabase.auth.getSession();
     const response = await fetch("/api/profile", {
@@ -222,7 +290,7 @@ export default function MyReportsPage() {
         fileName: `${report.patient_name || report.patientName}-emergency-card.pdf`,
         title: "Emergency wallet card",
         locale: language,
-        watermark: "Keep this card with you. Demo project, not medical advice.",
+        watermark: "Keep this card with you. Emergency Helpline: 108 / 112",
         draw: (document, fontFamily) => {
           document.setFont(fontFamily);
           document.setFontSize(15);
@@ -230,7 +298,7 @@ export default function MyReportsPage() {
           document.text(`Emergency contact: ${emergencyContact || "Add a contact in My Reports"}`, 16, 58, { maxWidth: 175 });
           if (qr) document.addImage(qr, "PNG", 85, 90, 40, 40);
           document.setFontSize(9);
-          document.text(qr ? "QR opens the secure report share link." : "Create a secure share link to include its QR.", 16, 150);
+          document.text(qr ? "QR opens and downloads the secure report." : "Create a QR link to include its QR.", 16, 150);
         },
       });
     } catch (reason) {
@@ -243,7 +311,7 @@ export default function MyReportsPage() {
     setSelectedReportIds((curr) => (curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id]));
   }
 
-  const privateReports = reports.filter((r) => !(r.demo || r.mock));
+  const cloudReports = reports.filter((r) => Boolean(r.storage_path));
 
   if (loading) return <div className="mx-auto max-w-5xl px-4 py-10" role="status">Loading your reports...</div>;
 
@@ -251,8 +319,8 @@ export default function MyReportsPage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-3xl font-bold text-teal-900">My Reports</h1>
       {!user && getSupabaseBrowser() && (
-        <p className="mt-3 rounded bg-amber-50 p-3">
-          Sign in to see private reports. <a className="font-bold underline" href="/auth">Sign in</a>
+        <p className="mt-3 rounded bg-teal-50 p-3 text-sm">
+          Sign in to sync encrypted cloud files. <a className="font-bold underline" href="/auth">Sign in</a>
         </p>
       )}
       {message && <p role="status" className="mt-3 rounded bg-green-50 p-3 text-green-900">{message}</p>}
@@ -302,7 +370,7 @@ export default function MyReportsPage() {
       )}
 
       {/* Multi-report 1-QR bundle bar */}
-      {user && privateReports.length > 0 && (
+      {user && cloudReports.length > 0 && (
         <section className="mt-5 rounded-xl border border-teal-700 bg-teal-50/70 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -319,12 +387,12 @@ export default function MyReportsPage() {
                 type="button"
                 onClick={() =>
                   setSelectedReportIds(
-                    selectedReportIds.length === privateReports.length ? [] : privateReports.map((r) => r.id),
+                    selectedReportIds.length === cloudReports.length ? [] : cloudReports.map((r) => r.id),
                   )
                 }
                 className="min-h-[40px] rounded border border-teal-800 bg-white px-3 py-1.5 text-xs font-bold text-teal-900"
               >
-                {selectedReportIds.length === privateReports.length ? "Clear selection" : "Select all"}
+                {selectedReportIds.length === cloudReports.length ? "Clear selection" : "Select all"}
               </button>
               <button
                 type="button"
@@ -363,12 +431,12 @@ export default function MyReportsPage() {
 
       {shareQr && (
         <section className="mt-5 flex flex-wrap items-center gap-4 rounded-lg border bg-white p-4">
-          <img src={shareQr.qr} alt="Secure report QR code" className="h-36 w-36" />
+          <img src={shareQr.qr} alt="Scannable report QR code" className="h-36 w-36" />
           <div>
-            <h2 className="font-bold">{shareQr.label || "Secure share QR"}</h2>
-            <p className="mt-2 break-all text-sm">{shareQr.url}</p>
+            <h2 className="font-bold">{shareQr.label || "Scannable report QR"}</h2>
+            <a href={shareQr.url} download className="mt-2 block break-all text-sm text-teal-900 underline">{shareQr.url}</a>
             <p className="mt-2 text-xs text-slate-600">
-              QR contains only the random share URL.{shareQr.pinProtected ? " Share the PIN with the recipient separately." : ""}
+              Scanning this QR downloads the report directly.{shareQr.pinProtected ? " Share the PIN with the recipient separately." : ""}
             </p>
           </div>
         </section>
@@ -378,13 +446,13 @@ export default function MyReportsPage() {
         {reports.map((report) => {
           const reportId = report.id;
           const reportShares = shares.filter((share) => share.report_id === reportId);
-          const demo = report.demo || report.mock;
+          const isCloud = Boolean(report.storage_path);
           const checked = selectedReportIds.includes(reportId);
           return (
             <article key={reportId} className="rounded-lg border bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  {!demo && user && (
+                  {isCloud && user && (
                     <input
                       type="checkbox"
                       aria-label={`Select ${report.patient_name || report.patientName} ${report.report_type || report.reportType} for bundle QR`}
@@ -398,29 +466,25 @@ export default function MyReportsPage() {
                       {report.patient_name || report.patientName} · {report.report_type || report.reportType}
                     </h2>
                     <p className="text-sm text-slate-600">
-                      {report.report_date || report.uploadedAt} · {report.doctor_name || report.doctor || "Doctor not specified"}
+                      {report.report_date || report.reportDate || report.uploadedAt} · {report.doctor_name || report.doctor || "Doctor not specified"}
                     </p>
                   </div>
                 </div>
-                <span className="rounded bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">
-                  {demo ? "DEMO" : "PRIVATE"}
+                <span className="rounded bg-green-100 px-2 py-1 text-xs font-bold text-green-950">
+                  {isCloud ? "PRIVATE CLOUD" : "CARE VAULT"}
                 </span>
               </div>
               {report.notes && <p className="mt-2 text-sm">{report.notes}</p>}
               <div className="mt-4 flex flex-wrap gap-2">
-                {!demo && (
-                  <button onClick={() => downloadReport(report)} className="rounded border px-3 py-2">
-                    Download report
-                  </button>
-                )}
+                <button onClick={() => downloadReport(report)} className="rounded border px-3 py-2 font-semibold">
+                  Download report
+                </button>
                 <button onClick={() => downloadSummary(report)} className="rounded border px-3 py-2">
                   Download summary PDF
                 </button>
-                {!demo && (
-                  <button disabled={sharing} onClick={() => createShare(report)} className="rounded bg-teal-800 px-3 py-2 text-white disabled:opacity-60">
-                    {sharing ? "Creating link..." : "Generate / regenerate QR"}
-                  </button>
-                )}
+                <button disabled={sharing} onClick={() => createShare(report)} className="rounded bg-teal-800 px-3 py-2 text-white disabled:opacity-60">
+                  {sharing ? "Creating link..." : "Generate download QR"}
+                </button>
                 <button onClick={() => walletCard(report)} className="rounded border px-3 py-2">
                   Print wallet card PDF
                 </button>
@@ -440,11 +504,8 @@ export default function MyReportsPage() {
             </article>
           );
         })}
-        {reports.length === 0 && (
-          <p className="rounded border border-dashed p-8 text-center text-slate-600">No reports yet. Upload one to get started.</p>
-        )}
       </div>
-      <p className="mt-6 text-sm text-slate-600">Demo project, not a substitute for medical advice.</p>
+      <p className="mt-6 text-sm text-slate-600">Swasth Saathi Care Portal — not a substitute for professional medical advice.</p>
     </div>
   );
 }

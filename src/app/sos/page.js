@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { PhoneCall, Plus, QrCode, ShieldAlert, Trash2 } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider";
 import { generatePdf } from "../../lib/generatePdf";
-import { getSupabaseBrowser } from "../../lib/supabase/browser";
+import { ensureSupabaseBrowser } from "../../lib/supabase/browser";
 import { SUPPORTED_LANGUAGES } from "../../lib/i18n";
 
 const emptyContact = () => ({ name: "", relation: "Family", whatsappPhone: "", optInStatus: "pending", sendOptIn: true });
@@ -36,10 +36,10 @@ export default function SosProfilePage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
-    const supabase = getSupabaseBrowser();
+    const supabase = await ensureSupabaseBrowser();
     if (!supabase) {
       try {
-        const local = JSON.parse(localStorage.getItem("swasth_demo_emergency_profile") || "null");
+        const local = JSON.parse(localStorage.getItem("swasth_emergency_profile") || "null");
         if (local) {
           setProfile(local.profile || profile);
           setContacts(local.contacts?.length ? local.contacts : [emptyContact()]);
@@ -115,8 +115,8 @@ export default function SosProfilePage() {
     }
 
     if (!token) {
-      localStorage.setItem("swasth_demo_emergency_profile", JSON.stringify({ profile, contacts: validContacts }));
-      setMessage("Saved locally in demo mode. Sign in with Supabase/Prisma to send live WhatsApp opt-ins and SOS alerts.");
+      localStorage.setItem("swasth_emergency_profile", JSON.stringify({ profile, contacts: validContacts }));
+      setMessage("Emergency profile & contacts saved. Sign in to dispatch live WhatsApp opt-ins and SOS tracking links.");
       setBusy(false);
       return;
     }
@@ -269,8 +269,8 @@ export default function SosProfilePage() {
       </p>
 
       {!token && !loading && (
-        <p className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-950">
-          Demo mode: sign in on <a href="/auth" className="font-bold underline">Account</a> to persist contacts, WhatsApp opt-ins, and live Emergency QR cards.
+        <p className="mt-4 rounded bg-teal-50 p-3 text-sm text-teal-950">
+          Sign in on <a href="/auth" className="font-bold underline">Account</a> to sync emergency contacts, WhatsApp opt-ins, and revocable Emergency QR cards to the cloud.
         </p>
       )}
       {message && <p role="status" className="mt-4 rounded bg-green-50 p-3 text-sm font-semibold text-green-950">{message}</p>}

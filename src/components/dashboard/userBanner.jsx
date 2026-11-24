@@ -20,34 +20,33 @@ import {
 } from "@/components/ui/tooltip";
 
 const UserBanner = () => {
-  const [didData, setDidData] = useRecoilState(didState);
-  const formattedDid = `${didData.did.slice(8, 16)}...${didData.did.slice(-8)}`;
-
-  useEffect(() => {
-    console.log(didData);
-  }, [didData]);
+  const [didData] = useRecoilState(didState);
+  const rawDid = didData?.did || "";
+  const formattedDid = rawDid ? `${rawDid.slice(8, 16)}...${rawDid.slice(-8)}` : "did:swasth:local";
 
   function handleCopyToClipboard() {
-    navigator.clipboard.writeText(didData.did);
+    if (rawDid) navigator.clipboard.writeText(rawDid);
   }
   return (
-    <div className="grid grid-cols-2 gap-8 p-8">
-      <Card className=" text-emerald-900 bg-emerald-50">
-        <CardHeader className="grid grid-cols-2 justify-between gap-2 ">
+    <div className="grid gap-6 md:grid-cols-2">
+      <Card className="border-slate-200 bg-white text-slate-900">
+        <CardHeader className="grid grid-cols-2 justify-between gap-2">
           <div>
-            <div className="">
-              <CardTitle className="text-emerald-900">DID </CardTitle>
-              <div className="flex mt-2">
-                <CardDescription>{formattedDid}</CardDescription>
+            <div>
+              <CardTitle className="text-slate-950">DID</CardTitle>
+              <div className="mt-2 flex items-center">
+                <CardDescription className="font-mono text-slate-700">{formattedDid}</CardDescription>
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger>
-                      <span
-                        className="cursor-pointer ml-2 mr-4 inline-flex h-8 items-center text-md"
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Copy DID"
+                        className="ml-2 mr-4 inline-flex h-8 cursor-pointer items-center text-slate-700 hover:text-teal-800"
                         onClick={handleCopyToClipboard}
                       >
                         <CopyIcon />
-                      </span>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Copy DID</p>
@@ -57,39 +56,39 @@ const UserBanner = () => {
               </div>
             </div>
             <div className="mt-2">
-              <CardTitle className="text-emerald-900">User Name </CardTitle>
-              <CardDescription className="mt-2">{didData.name}</CardDescription>
+              <CardTitle className="text-slate-950">User Name</CardTitle>
+              <CardDescription className="mt-1 text-slate-700">{didData?.name || "Swasth Patient"}</CardDescription>
             </div>
           </div>
           <div>
             <div>
-              <CardTitle className="text-emerald-900">Date of Birth </CardTitle>
-              <CardDescription className="mt-2">{didData.year}</CardDescription>
+              <CardTitle className="text-slate-950">Date of Birth</CardTitle>
+              <CardDescription className="mt-1 tabular-nums text-slate-700">{didData?.year || "Not set"}</CardDescription>
             </div>
             <div className="mt-3">
-              <CardTitle className="text-emerald-900">User Type </CardTitle>
-              <div className="text-sm text-slate-500">
-                <Badge className="mt-2 text-lg bg-green-200 hover:bg-green-200">
-                  {didData.userType}
+              <CardTitle className="text-slate-950">User Type</CardTitle>
+              <div className="text-sm text-slate-600">
+                <Badge className="mt-1.5 bg-teal-50 text-teal-900 hover:bg-teal-100">
+                  {didData?.userType || "individual"}
                 </Badge>
               </div>
             </div>
           </div>
         </CardHeader>
       </Card>
-      <Card className=" text-emerald-900 bg-emerald-50">
-        <dl className="grid grid-cols-2 justify-center h-full">
+      <Card className="border-slate-200 bg-white text-slate-900">
+        <dl className="grid h-full grid-cols-2 items-center justify-center py-4">
           <div className="flex flex-col items-center justify-center">
-            <dt className="mb-2 text-3xl font-extrabold">
-              {didData.userTotalrecords}
+            <dt className="tabular-nums mb-1 text-3xl font-extrabold text-slate-950">
+              {didData?.userTotalrecords ?? 0}
             </dt>
-            <dd className="text-gray-500 dark:text-gray-400">Health Records</dd>
+            <dd className="text-xs font-semibold uppercase tracking-wide text-slate-500">Health Records</dd>
           </div>
           <div className="flex flex-col items-center justify-center">
-            <dt className="mb-2 text-3xl font-extrabold">
-              {didData.totalIssuersForUser}
+            <dt className="tabular-nums mb-1 text-3xl font-extrabold text-slate-950">
+              {didData?.totalIssuersForUser ?? 0}
             </dt>
-            <dd className="text-gray-500 dark:text-gray-400">Hospitals</dd>
+            <dd className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hospitals</dd>
           </div>
         </dl>
       </Card>

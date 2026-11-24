@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Mic, MicOff } from "lucide-react";
 import hospitals from "./hospitals.json";
+import { useI18n } from "../../components/I18nProvider";
+import { useVoice } from "../../lib/useVoice";
+import { parseVoiceCommand } from "../../lib/voiceCommands";
 
 const Map = dynamic(() => import("./RouteMap"), { ssr: false, loading: () => <div className="h-96 animate-pulse rounded bg-slate-200" role="status">Loading map...</div> });
 
 export default function RouteFeature() {
+  const { language } = useI18n();
+  const voice = useVoice(language);
+  const [voiceStatus, setVoiceStatus] = useState("");
   const [origin, setOrigin] = useState("India Gate, New Delhi");
   const [destination, setDestination] = useState("AIIMS New Delhi");
   const [destinationCoordinates, setDestinationCoordinates] = useState(null);
@@ -62,7 +69,44 @@ export default function RouteFeature() {
     );
   }
 
-  useEffect(() => { plan(); }, []);
+  const resolveHospitalName = useCallback((spokenName) => {
+    const clean = String(spokenName || "").trim();
+    if (!clean) return "";
+    const lower = clean.toLowerCase();
+    const match = hospitals.find((h) => h.name.toLowerCase().includes(lower) || lower.includes(h.name.toLowerCase().split(" ")[0]));
+    return match ? match.name : clean;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      plan();
+      return undefined;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const destParam = params.get("destination");
+    if (destParam) {
+      const resolved = resolveHospitalName(destParam);
+      setDestination(resolved);
+      setDestinationCoordinates(null);
+      setVoiceStatus(`Destination set to ${resolved}.`);
+    }
+    plan();
+
+    const handleVoiceRoute = (event) => {
+      const cmd = event?.detail;
+      if (!cmd) return;
+      if (cmd.destination) {
+        const resolved = resolveHospitalName(cmd.destination);
+        setDestination(resolved);
+        setDestinationCoordinates(null);
+        setVoiceStatus(`Voice route: destination set to ${resolved}.`);
+      } else if (cmd.action === "nearby") {
+        setVoiceStatus("Say or tap 'Find nearby hospitals' after enabling location.");
+      }
+    };
+    window.addEventListener("swasth:voice-route-hospital", handleVoiceRoute);
+    return () => window.removeEventListener("swasth:voice-route-hospital", handleVoiceRoute);
+  }, []);
 
   useEffect(() => {
     if (!locationEnabled || mode !== "ambulance") return undefined;
@@ -114,6 +158,35 @@ export default function RouteFeature() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
+  function handleVoiceRoute() {
+    if (voice.listening) {
+      voice.stopListening();
+      return;
+    }
+    voice.clearError();
+    voice.listen(
+      (transcript) => {
+        const parsed = parseVoiceCommand(transcript);
+        if (parsed.action === "nearby") {
+          setVoiceStatus(`Heard "${transcript}" — checking nearby hospitals.`);
+          voice.speak("Searching nearby hospitals.");
+          findNearby();
+          return;
+        }
+        const rawDest = parsed.destination || parsed.query || transcript;
+        const resolved = resolveHospitalName(rawDest);
+        if (resolved) {
+          setDestination(resolved);
+          setDestinationCoordinates(null);
+          setVoiceStatus(`Voice route: destination set to ${resolved}.`);
+          voice.speak(`Setting hospital destination to ${resolved}.`);
+        }
+      },
+      (err) => setVoiceStatus(err),
+      { interim: true },
+    );
+  }
+
   const displayRoute = route?.alternatives?.[selectedAlternative]
     ? { ...route, ...route.alternatives[selectedAlternative] }
     : route;
@@ -121,13 +194,34 @@ export default function RouteFeature() {
     (!nearbyFilters.emergencyOnly || Boolean(hospital.emergency)) &&
     (!nearbyFilters.icuOnly || Number(hospital.icuAvailable) > 0) &&
     (!nearbyFilters.speciality || hospital.speciality?.toLowerCase().includes(nearbyFilters.speciality.toLowerCase())));
+  const hasCustomDestination = destination && !hospitals.some((h) => h.name === destination);
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
-      <h1 className="text-3xl font-bold text-teal-900">Accessible Hospital Routing</h1>
-      <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-teal-900">Accessible Hospital Routing</h1>
+          <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleVoiceRoute}
+          aria-pressed={voice.listening}
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white ${
+            voice.listening ? "animate-pulse bg-rose-700 hover:bg-rose-800" : "bg-teal-800 hover:bg-teal-900"
+          }`}
+        >
+          {voice.listening ? <MicOff className="h-4 w-4" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
+          <span>{voice.listening ? "Listening..." : "Speak Hospital Destination"}</span>
+        </button>
+      </div>
+      {(voice.listening || voice.interimTranscript || voiceStatus || voice.error) && (
+        <p role="status" aria-live="polite" className="mt-3 rounded-lg border border-teal-300 bg-teal-50 p-3 text-sm font-semibold text-teal-950">
+          {voice.error || (voice.interimTranscript ? `Listening: "${voice.interimTranscript}"` : voiceStatus || 'Speak a hospital name, e.g. "AIIMS New Delhi" or "Safdarjung Hospital".')}
+        </p>
+      )}
       <form onSubmit={(event) => { event.preventDefault(); plan(positionRef.current); }} className="mt-5 grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-2">
         <label>Origin<input className="mt-1 w-full rounded border px-3 py-2" value={origin} onChange={(event) => setOrigin(event.target.value)} required /></label>
-        <label>Destination<select className="mt-1 w-full rounded border px-3 py-2" value={destination} onChange={(event) => { setDestination(event.target.value); setDestinationCoordinates(null); }}>{hospitals.map((hospital) => <option key={hospital.id}>{hospital.name}</option>)}</select></label>
+        <label>Destination<select className="mt-1 w-full rounded border px-3 py-2" value={destination} onChange={(event) => { setDestination(event.target.value); setDestinationCoordinates(null); }}>{hasCustomDestination && <option value={destination}>{destination}</option>}{hospitals.map((hospital) => <option key={hospital.id}>{hospital.name}</option>)}</select></label>
         <label className="block">Route mode<select className="mt-1 w-full rounded border px-3 py-2" value={mode} onChange={(event) => setMode(event.target.value)}><option value="accessibility">Wheelchair accessibility</option><option value="ambulance">Ambulance / traffic-aware</option></select></label>
         <fieldset className="md:col-span-2"><legend className="font-semibold">Accessibility preferences</legend><div className="mt-2 flex flex-wrap gap-2">{["Avoid steps", "Avoid stairs", "Prefer smooth roads", "Avoid high-traffic roads"].map((item) => <button type="button" aria-pressed={needs.includes(item)} key={item} onClick={() => setNeeds((items) => items.includes(item) ? items.filter((value) => value !== item) : [...items, item])} className={`rounded-full border px-3 py-2 ${needs.includes(item) ? "bg-teal-800 text-white" : "bg-white"}`}>{item}</button>)}</div></fieldset>
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">{mode === "ambulance" ? <><button type="button" onClick={() => setLocationEnabled((enabled) => !enabled)} className="rounded border border-teal-800 px-3 py-2">{locationEnabled ? "Stop location sharing" : "Use live location (30s refresh)"}</button><span className="text-sm">{locationEnabled ? "Location updates on" : "Location is off"}</span></> : <button type="button" onClick={useCurrentLocation} className="rounded border border-teal-800 px-3 py-2">Use current location once</button>}</div>
@@ -143,7 +237,7 @@ export default function RouteFeature() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div>{displayRoute && <Map route={displayRoute} />}</div>
         {route && <aside className="rounded-lg border bg-white p-5">
-          <span className={`rounded px-2 py-1 text-xs font-bold ${route.mock ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-900"}`}>{route.mock ? "DEMO ROUTE" : route.source}</span>
+          <span className={`rounded px-2 py-1 text-xs font-bold ${route.cached || route.mock ? "bg-teal-100 text-teal-950" : "bg-green-100 text-green-900"}`}>{route.cached || route.mock ? "CACHED ROUTE" : route.source}</span>
           <p className="mt-3"><strong>{displayRoute.distance}</strong> km · <strong>{displayRoute.duration}</strong> min</p>
           {lastUpdated && <p className="text-xs text-slate-600">Updated {new Date(lastUpdated).toLocaleTimeString()}</p>}
           {route.alternatives?.length > 1 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Route alternatives">{route.alternatives.map((alternative, index) => <button key={`${alternative.distance}-${index}`} aria-pressed={selectedAlternative === index} onClick={() => setSelectedAlternative(index)} className={`rounded border px-3 py-2 text-sm ${selectedAlternative === index ? "bg-teal-800 text-white" : ""}`}>Route {index + 1} · {alternative.duration} min</button>)}</div>}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import seed from "../../../features/beds/data/hospitals.json";
-import { getSupabaseBrowser } from "../../../lib/supabase/browser";
+import { ensureSupabaseBrowser } from "../../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../../lib/useRealtimeRefresh";
 import LiveIndicator from "../../../components/LiveIndicator";
 
@@ -68,7 +68,7 @@ export default function BedAdminPage() {
   useEffect(() => {
     let active = true;
     async function initialize() {
-      const supabase = getSupabaseBrowser();
+      const supabase = await ensureSupabaseBrowser();
       if (!supabase) {
         setMessage("Sign in with an authorized hospital administrator account. Configure Supabase Auth and Prisma Postgres.");
         return;

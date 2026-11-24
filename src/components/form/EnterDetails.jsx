@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const EnterDetails = ({ type, setDetails, setStep }) => {
+const EnterDetails = ({ type, setDetails, setStep, embedded = false }) => {
   let cardTitle = "";
   let dobLabel = "";
   let userType = type;
@@ -35,15 +35,12 @@ const EnterDetails = ({ type, setDetails, setStep }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // set details
     setDetails(formData);
-
-    // change step
     setStep(2);
   };
   return (
-    <div className="flex flex-col mt-40 justify-center items-center animate-in slide-in-from-bottom fade-in duration-700">
-      <Card className="w-[550px]">
+    <div className={`flex flex-col items-center justify-center ${embedded ? "py-2" : "mt-24"} animate-in slide-in-from-bottom fade-in duration-700`}>
+      <Card className={embedded ? "w-full border-slate-200 bg-white" : "w-full max-w-[550px] border-slate-200 bg-white"}>
         <CardHeader>
           <CardTitle className="text-emerald-600">{cardTitle}</CardTitle>
           <CardDescription className="text-emerald-400">

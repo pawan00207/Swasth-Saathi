@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function PublicSharedReport({ params }) {
   const [report, setReport] = useState(null);
@@ -8,6 +8,7 @@ export default function PublicSharedReport({ params }) {
   const [loading, setLoading] = useState(true);
   const [pinRequired, setPinRequired] = useState(false);
   const [pin, setPin] = useState("");
+  const autoDownloadedRef = useRef(false);
 
   const loadReport = useCallback(async (suppliedPin = "") => {
     setLoading(true);
@@ -33,6 +34,18 @@ export default function PublicSharedReport({ params }) {
 
   useEffect(() => { loadReport(); }, [loadReport]);
 
+  useEffect(() => {
+    if (!report?.downloadUrl || autoDownloadedRef.current || typeof window === "undefined") return;
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("download") === "1") {
+      autoDownloadedRef.current = true;
+      const link = document.createElement("a");
+      link.href = report.downloadUrl;
+      link.download = `swasth-report-${report.id || "shared"}.pdf`;
+      link.click();
+    }
+  }, [report]);
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <div className="rounded border-2 border-amber-500 bg-amber-50 p-3 text-center font-bold text-amber-950">Private medical information — only open this link if the patient shared it with you.</div>
@@ -47,11 +60,14 @@ export default function PublicSharedReport({ params }) {
           <p className="mt-2"><strong>Date:</strong> {report.reportDate}</p>
           <p className="mt-2"><strong>Doctor:</strong> {report.doctorName || "Not specified"}</p>
           {report.notes && <p className="mt-2"><strong>Notes:</strong> {report.notes}</p>}
-          <a href={report.downloadUrl} target="_blank" rel="noreferrer" className="mt-5 inline-block rounded bg-teal-800 px-4 py-2 font-semibold text-white">View / Download report</a>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a href={report.downloadUrl} download={`swasth-report-${report.id || "shared"}.pdf`} className="inline-block rounded bg-teal-800 px-4 py-2 font-semibold text-white">Download Report</a>
+            <a href={report.downloadUrl} target="_blank" rel="noreferrer" className="inline-block rounded border border-teal-800 px-4 py-2 font-semibold text-teal-900">Open in browser</a>
+          </div>
           <p className="mt-3 text-xs text-slate-600">The secure download URL expires shortly. Share links can be revoked by the report owner.</p>
         </section>
       )}
-      <p className="mt-6 text-sm text-slate-600">Demo project, not a substitute for medical advice.</p>
+      <p className="mt-6 text-sm text-slate-600">Swasth Saathi Care Portal — not a substitute for professional medical advice.</p>
     </main>
   );
 }

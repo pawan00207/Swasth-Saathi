@@ -1,6 +1,15 @@
 import QRCode from "qrcode";
 
+export function getRecordDownloadUrl(recordId, origin = "") {
+  const cleanOrigin = String(origin || "").replace(/\/$/, "");
+  return `${cleanOrigin}/api/reports/download/${encodeURIComponent(recordId)}`;
+}
+
+export function getRecordViewUrl(recordId, origin = "") {
+  const cleanOrigin = String(origin || "").replace(/\/$/, "");
+  return `${cleanOrigin}/records/view/${encodeURIComponent(recordId)}`;
+}
+
 export async function createRecordQr(recordId, origin = "") {
-  const path = `/records/view/${encodeURIComponent(recordId)}`;
-  return QRCode.toDataURL(`${origin}${path}`);
+  return QRCode.toDataURL(getRecordDownloadUrl(recordId, origin));
 }

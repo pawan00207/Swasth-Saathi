@@ -29,7 +29,7 @@ export default function SaarthiChat() {
     } catch (error) {
       setMessages((items) => [
         ...items,
-        { role: "assistant", text: `Live demo guidance is active. ${error.message}` },
+        { role: "assistant", text: error.message || "Saarthi AI could not respond right now. Please try again." },
       ]);
     } finally {
       setLoading(false);

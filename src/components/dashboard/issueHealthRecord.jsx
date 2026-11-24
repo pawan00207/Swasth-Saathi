@@ -161,7 +161,7 @@ export function IssueHealthRecord() {
 
   return (
     <Dialog>
-      <DialogTrigger>
+      <DialogTrigger asChild>
         <Button
           onClick={handleClick}
           className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500"
@@ -179,21 +179,25 @@ export function IssueHealthRecord() {
         ) : (
           <>
             {!sendRecordSuccess ? (
-              <DialogHeader>
-                <DialogTitle className="text-cyan-900">
-                  Issue a Health Record.
-                </DialogTitle>
-                <DialogDescription>
-                  <Card className="p-2 border-cyan-800 bg-cyan-50 ">
-                    <CardHeader>
-                      {/* <CardTitle className="text-cyan-600">
-                        Create project
-                      </CardTitle> */}
-                      <CardDescription className="text-cyan-600">
-                        Enter details to issue a healthRecord.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-cyan-900">
+                    Issue a Health Record.
+                  </DialogTitle>
+                  <DialogDescription>
+                    Enter patient details and upload the record to issue it.
+                  </DialogDescription>
+                </DialogHeader>
+                <Card className="p-2 border-cyan-800 bg-cyan-50 ">
+                  <CardHeader>
+                    {/* <CardTitle className="text-cyan-600">
+                      Create project
+                    </CardTitle> */}
+                    <CardDescription className="text-cyan-600">
+                      Enter details to issue a healthRecord.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                       <form onSubmit={handlehealthRecordIssue}>
                         <div className="grid w-full items-center gap-4">
                           <div className="flex flex-col space-y-1.5">
@@ -310,8 +314,7 @@ export function IssueHealthRecord() {
                       </form>
                     </CardContent>
                   </Card>
-                </DialogDescription>
-              </DialogHeader>
+              </>
             ) : (
               <div className="flex flex-col gap-4 items-center">
                 <CheckCircledIcon className="w-20 h-20 text-green-500" />

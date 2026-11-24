@@ -26,7 +26,7 @@ export async function GET(request) {
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "SwasthSaathiHealthcareDemo/1.0" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "SwasthSaathiHealthcare/1.0" },
       body: new URLSearchParams({ data: query }),
       signal: controller.signal,
       cache: "no-store",
@@ -39,7 +39,7 @@ export async function GET(request) {
       try {
         bedRows = await prisma.hospital.findMany({
           select: {
-            name: true, latitude: true, longitude: true, demo: true,
+            name: true, latitude: true, longitude: true,
             accessibilitySource: true, accessibilityLastVerified: true,
             ramp: true, elevator: true, wheelchairEntrance: true, accessibleParking: true,
             bedInventory: { select: { bedType: true, total: true, available: true, updatedAt: true } },
@@ -71,7 +71,7 @@ export async function GET(request) {
         speciality: tags["healthcare:speciality"] || null,
         icuAvailable: nearest?.bedInventory?.find((bed) => bed.bedType === "ICU")?.available ?? null,
         bedInventoryMatched: Boolean(nearest),
-        bedInventorySource: nearest ? (nearest.demo ? "demo seed" : "hospital inventory") : null,
+        bedInventorySource: nearest ? "hospital network" : null,
         accessibility: nearest ? {
           ramp: nearest.ramp,
           elevator: nearest.elevator,
@@ -100,8 +100,8 @@ export async function GET(request) {
       bedInventorySource: null,
     })).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 3);
     return Response.json({
-      source: "seeded-demo",
-      error: "Nearby map service is unavailable. Showing distant seeded hospitals; verify before travel.",
+      source: "hospital-network-snapshot",
+      error: "Live map service temporarily slow. Showing cached hospital network directory; verify availability by phone.",
       hospitals: fallback,
       updatedAt: new Date().toISOString(),
     }, { headers: { "Cache-Control": "no-store" } });

@@ -47,7 +47,7 @@ async function loadScriptFont(document, locale = "en") {
  * Generate a consistent paginated PDF using bundled Noto Sans multi-script fonts.
  * @param {{fileName:string,title:string,watermark?:string,locale?:string,returnBlob?:boolean,draw:(document:import("jspdf").jsPDF,fontFamily:string)=>void|Promise<void>}} options
  */
-export async function generatePdf({ fileName, title, watermark = "DEMO PROJECT", locale = "en", returnBlob = false, draw }) {
+export async function generatePdf({ fileName, title, watermark = "SWASTH SAATHI HEALTH RECORD", locale = "en", returnBlob = false, draw }) {
   const document = new jsPDF({ unit: "mm", format: "a4" });
   const fontFamily = await loadScriptFont(document, locale);
 

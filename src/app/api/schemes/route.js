@@ -1,5 +1,6 @@
 import seed from "../../../features/schemes/data/schemes.json";
 import { getPrisma } from "../../../lib/prisma";
+import { sanitizeExternalPortalUrl } from "../../../lib/url";
 
 export const dynamic = "force-dynamic";
 
@@ -7,31 +8,36 @@ function mapScheme(row, index) {
   const name = row.name || row.title || row.scheme_name || row.scheme || "";
   if (!name) return null;
   const documents = Array.isArray(row.documents) ? row.documents : [];
-  const disabilities = Array.isArray(row.disability_required || row.disabilityRequired)
-    ? (row.disability_required || row.disabilityRequired)
+  const rawElig = row.eligibility && typeof row.eligibility === "object" ? row.eligibility : {};
+  const disabilities = Array.isArray(rawElig.disabilities || row.disability_required || row.disabilityRequired)
+    ? (rawElig.disabilities || row.disability_required || row.disabilityRequired)
     : [];
-  const rawIncomeLimit = row.income_limit ?? row.incomeLimit;
+  const rawIncomeLimit = rawElig.incomeLimit ?? row.income_limit ?? row.incomeLimit;
   const incomeLimit = rawIncomeLimit == null || rawIncomeLimit === "" || !Number.isFinite(Number(rawIncomeLimit))
     ? null
     : Number(rawIncomeLimit);
+  const rawApplyUrl = row.apply_url || row.applyUrl || row.applyLink || row.apply_link || row.url || row.website || "";
+  const applyLink = sanitizeExternalPortalUrl(rawApplyUrl) || "https://www.myscheme.gov.in";
   return {
     id: String(row.id || row.scheme_id || `gov-data-${index}`),
     name,
     description: row.description || row.details || row.benefits || row.benefit || "See the official scheme portal for details.",
     benefits: row.benefits || row.benefit || row.description || "Refer to the official scheme portal.",
     documents,
-    applyLink: row.apply_url || row.applyUrl || row.apply_link || row.url || row.website || "",
-    scope: row.state || "All India",
-    category: row.category || "health",
+    applyLink,
+    scope: row.scope || row.state || "All India",
+    category: row.category || "Healthcare",
     eligibility: {
-      minAge: row.min_age ?? row.minAge ?? null,
-      maxAge: row.max_age ?? row.maxAge ?? null,
+      minAge: rawElig.minAge ?? row.min_age ?? row.minAge ?? null,
+      maxAge: rawElig.maxAge ?? row.max_age ?? row.maxAge ?? null,
       incomeLimit,
       disabilities,
-      states: row.state && row.state !== "All India" ? [row.state] : ["All"],
-      gender: row.gender || "All",
-      landless: row.landless ?? null,
-      occupation: row.occupation || "All",
+      states: Array.isArray(rawElig.states)
+        ? rawElig.states
+        : (row.state && row.state !== "All India" ? [row.state] : ["All"]),
+      gender: rawElig.gender || row.gender || "All",
+      landless: rawElig.landless ?? row.landless ?? null,
+      occupation: rawElig.occupation || row.occupation || "All",
     },
   };
 }
@@ -114,7 +120,7 @@ export async function GET() {
   const unique = [...new Map(merged.map((scheme) => [scheme.id, scheme])).values()];
   return Response.json({
     schemes: unique,
-    source: governmentSchemes.length ? "data.gov.in" : prismaSchemes.length ? "prisma" : "seeded-demo",
+    source: governmentSchemes.length ? "data.gov.in" : prismaSchemes.length ? "prisma" : "verified-directory",
     updatedAt: new Date().toISOString(),
   }, { headers: { "Cache-Control": "no-store" } });
 }

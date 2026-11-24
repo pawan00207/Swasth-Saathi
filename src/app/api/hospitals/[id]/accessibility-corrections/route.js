@@ -126,7 +126,6 @@ export async function PATCH(request, { params }) {
       const updateData = {
         accessibilitySource: "staff-verified",
         accessibilityLastVerified: now,
-        demo: false,
       };
       if (existing.ramp !== null) updateData.ramp = triStateToBoolean(existing.ramp);
       if (existing.elevator !== null) updateData.elevator = triStateToBoolean(existing.elevator);

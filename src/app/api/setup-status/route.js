@@ -1,29 +1,53 @@
 import { getPrisma } from "../../../lib/prisma";
 import { getActiveWhatsAppProviderName, isWhatsAppConfigured } from "../../../lib/whatsapp/provider";
+import { isAbdmConfigured, testAbdmConnection } from "../../../lib/abdm/client";
+import { getTelegramConfig, isTelegramConfigured } from "../../../lib/telegram";
 
 export const dynamic = "force-dynamic";
 
 const requestLimits = new Map();
+
+function getSupabaseEnv() {
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "",
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "",
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "",
+  };
+}
+
 const checks = [
   {
     name: "Supabase Auth / Storage",
-    configured: () => Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    configured: () => {
+      const { url, anonKey, serviceKey } = getSupabaseEnv();
+      return Boolean(url && anonKey && serviceKey);
+    },
     test: async () => {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const { url, anonKey, serviceKey } = getSupabaseEnv();
       const authResponse = await fetch(`${url.replace(/\/$/, "")}/auth/v1/health`, {
-        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+        headers: { apikey: anonKey },
         cache: "no-store",
       });
       if (!authResponse.ok) return false;
       const storageResponse = await fetch(`${url.replace(/\/$/, "")}/storage/v1/bucket/medical-reports`, {
         headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
         },
         cache: "no-store",
       });
       return storageResponse.ok;
     },
+  },
+  {
+    name: "ABDM Gateway (V3)",
+    configured: () => isAbdmConfigured(),
+    test: async () => testAbdmConnection(),
+  },
+  {
+    name: "Saarthi Gemini AI",
+    configured: () => Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY),
+    test: async () => Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY),
   },
   {
     name: "Prisma Postgres",
@@ -124,6 +148,18 @@ const checks = [
     },
   },
   {
+    name: "Telegram Bot",
+    configured: () => isTelegramConfigured(),
+    test: async () => {
+      const { botToken } = getTelegramConfig();
+      const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(botToken)}/getMe`, {
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      return Boolean(response.ok && data?.ok);
+    },
+  },
+  {
     name: "SOS Emergency",
     configured: () => Boolean(process.env.DATABASE_URL || isWhatsAppConfigured(getActiveWhatsAppProviderName())),
     test: async () => {
@@ -164,7 +200,7 @@ export async function GET(request) {
 
   const results = await Promise.all(checks.map(async (check) => {
     const configured = check.configured();
-    if (!configured) return { name: check.name, configured, ok: false, state: "demo" };
+    if (!configured) return { name: check.name, configured, ok: false, state: "cached" };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {
