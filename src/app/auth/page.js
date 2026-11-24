@@ -43,7 +43,7 @@ export default function AuthPage() {
     try {
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) {
-        setMessage("Authentication service is not configured. Check the Supabase URL and publishable key in .env.local, then restart the app.");
+        setMessage("Supabase sign-in is not configured for this deployment. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY) to the host environment, then redeploy. For local development, set them in .env.local and restart the app.");
         return;
       }
 

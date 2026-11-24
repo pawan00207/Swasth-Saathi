@@ -47,6 +47,7 @@ Open `http://localhost:3000/admin/setup-status` to check provider connectivity (
 2. Set `DATABASE_URL` for persistent patient profiles and cloud appointments.
 3. In Supabase Authentication settings, enable the Email provider and configure the Site URL plus redirect allow-list for the app origin (for example, `http://localhost:3001/auth` during local development and your production `/auth` URL).
 4. The `/auth` page supports sign-up, password sign-in, email confirmation, and password reset. Reset links return to `/auth`; users can then choose a new password.
+5. For Netlify, add the same three Supabase variables under **Project configuration → Environment variables** and redeploy. Keep the service/secret key server-only; never prefix it with `NEXT_PUBLIC_`.
 
 ### 2. Razorpay TEST Mode & Webhook
 1. In the [Razorpay Dashboard](https://dashboard.razorpay.com/), toggle **Test Mode**.
