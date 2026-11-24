@@ -1,8 +1,39 @@
 import { sign } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
 
+export const dynamic = "force-dynamic";
+
 function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+
+function getValidDemoJwt(appId) {
+  const token = process.env.JAAS_DEMO_JWT?.trim();
+  if (!token || !appId) return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.sub !== appId) return null;
+    if (typeof payload.exp !== "number" || payload.exp <= now + 30) return null;
+    if (typeof payload.nbf === "number" && payload.nbf > now + 30) return null;
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET() {
+  const appId = process.env.JAAS_APP_ID || null;
+  const privateRoomsConfigured = Boolean(
+    appId && process.env.JAAS_API_KEY_ID && process.env.JAAS_PRIVATE_KEY,
+  );
+  const demoToken = getValidDemoJwt(appId);
+  return Response.json(
+    { appId, privateRoomsConfigured, demoToken },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(request) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import demoDoctors from "./data/doctors.json";
 import { getSupabaseBrowser } from "../../lib/supabase/browser";
 import { useRealtimeRefresh } from "../../lib/useRealtimeRefresh";
@@ -21,7 +21,7 @@ export default function TeleconsultFeature() {
   const [selected, setSelected] = useState(demoDoctors[0]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [mode, setMode] = useState("Video");
+  const [mode, setMode] = useState("video");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [appointment, setAppointment] = useState(null);
@@ -30,6 +30,7 @@ export default function TeleconsultFeature() {
   const [booking, setBooking] = useState(false);
   const [specialityFilter, setSpecialityFilter] = useState("");
   const [languageFilter, setLanguageFilter] = useState("");
+  const roomSectionRef = useRef(null);
   const supabase = getSupabaseBrowser();
   const refreshAppointmentStatus = useCallback(async () => {
     if (!appointment?.id || appointment.demo) return;
@@ -78,6 +79,12 @@ export default function TeleconsultFeature() {
     loadDoctors();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (roomUrl) {
+      roomSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [roomUrl]);
 
   async function book(event) {
     event.preventDefault();
@@ -128,7 +135,21 @@ export default function TeleconsultFeature() {
   async function joinRoom() {
     try {
       if (appointment?.demo || !supabase) {
-        setRoomUrl(`https://meet.jit.si/${appointment.room_name}`);
+        let jaasUrl = null;
+        try {
+          const configRes = await fetch("/api/teleconsult/room-token", { cache: "no-store" });
+          if (configRes.ok) {
+            const config = await configRes.json();
+            if (config?.appId && config?.demoToken) {
+              jaasUrl = `https://8x8.vc/${encodeURIComponent(config.appId)}/${encodeURIComponent(appointment.room_name)}?jwt=${encodeURIComponent(config.demoToken)}`;
+            }
+          }
+        } catch {
+          jaasUrl = null;
+        }
+        setRoomUrl(
+          jaasUrl || `https://meet.jit.si/${encodeURIComponent(appointment.room_name)}`,
+        );
         return;
       }
       const { data } = await supabase.auth.getSession();
@@ -194,7 +215,32 @@ export default function TeleconsultFeature() {
           {appointment && <section className="mt-5 border-t pt-4"><div className="flex items-center justify-between gap-2"><h3 className="font-bold">Appointment details</h3>{!appointment.demo&&<LiveIndicator connected={realtimeConnected}/>}</div><p className="text-sm">{appointment.doctor} · {new Date(appointment.starts_at || `${appointment.date}T${appointment.time}`).toLocaleString()} · Status: {appointment.status}</p><button onClick={joinRoom} className="mt-3 rounded bg-teal-800 px-3 py-2 text-white">Join consultation</button></section>}
         </aside>
       </div>
-      {roomUrl && <section className="mt-6 rounded-lg border bg-white p-5"><h2 className="font-bold">{appointment?.demo ? "Public demo Jitsi room — do not discuss personal health information" : "Private appointment room"}</h2><iframe title="Teleconsultation video room" referrerPolicy="no-referrer" allow="camera; microphone; fullscreen; display-capture" className="mt-3 h-96 w-full rounded border" src={roomUrl} /></section>}
+      {roomUrl && (
+        <section ref={roomSectionRef} className="mt-6 rounded-lg border bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-bold">
+              {appointment?.demo
+                ? "Public demo Jitsi room — do not discuss personal health information"
+                : "Private appointment room"}
+            </h2>
+            <a
+              href={roomUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded border border-teal-800 px-3 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-50"
+            >
+              Open room in new tab
+            </a>
+          </div>
+          <iframe
+            title="Teleconsultation video room"
+            referrerPolicy="no-referrer"
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            className="mt-3 h-[480px] w-full rounded border"
+            src={roomUrl}
+          />
+        </section>
+      )}
     </div>
   );
 }

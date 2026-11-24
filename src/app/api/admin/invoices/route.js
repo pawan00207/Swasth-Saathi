@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
 import { getSupabaseAdmin } from "../../../../lib/supabase/server";
+import { computeInvoiceHash, writeAuditLog } from "../../../../lib/audit";
+import { publishRealtime } from "../../../../lib/realtime-server";
 
 function isMoney(value) {
   const number = Number(value);
@@ -15,7 +17,12 @@ export async function GET(request) {
   }
   const invoices = await context.prisma.invoice.findMany({
     where: { hospitalId: context.profile.hospitalId },
-    include: { items: true, patient: { select: { displayName: true, userId: true } }, hospital: { select: { name: true } } },
+    include: {
+      items: true,
+      patient: { select: { displayName: true, userId: true } },
+      hospital: { select: { name: true } },
+      payments: { orderBy: { createdAt: "desc" }, take: 3 },
+    },
     orderBy: { createdAt: "desc" },
   });
   return Response.json({ invoices });
@@ -47,7 +54,7 @@ export async function POST(request) {
     description: typeof item.description === "string" ? item.description.trim().slice(0, 200) : "",
     quantity: Number(item.quantity),
     unitPrice: Number(item.unitPrice),
-    taxRate: Number(item.taxRate),
+    taxRate: Number(item.taxRate ?? 0),
   }));
   if (items.some((item) =>
     !item.description
@@ -70,15 +77,30 @@ export async function POST(request) {
   const tax = items.reduce((sum, item) => sum + item.quantity * item.unitPrice * item.taxRate / 100, 0);
   const discount = Number(body.discount);
   if (discount > subtotal + tax) return Response.json({ error: "Discount cannot exceed the invoice total." }, { status: 400 });
+
+  const billNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const total = subtotal + tax - discount;
+  const billHash = computeInvoiceHash({
+    billNumber,
+    hospitalId: context.profile.hospitalId,
+    subtotal,
+    tax,
+    discount,
+    total,
+    items,
+  });
+
   const invoice = await context.prisma.invoice.create({
     data: {
-      billNumber: `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomUUID().slice(0, 8).toUpperCase()}`,
+      billNumber,
       patientId: patient.userId,
       hospitalId: context.profile.hospitalId,
       subtotal: subtotal.toFixed(2),
       tax: tax.toFixed(2),
       discount: discount.toFixed(2),
-      total: (subtotal + tax - discount).toFixed(2),
+      total: total.toFixed(2),
+      billHash,
+      whatsappConsent: Boolean(body.whatsappConsent),
       items: {
         create: items.map((item) => ({
           description: item.description,
@@ -88,8 +110,22 @@ export async function POST(request) {
         })),
       },
     },
-    include: { items: true, patient: { select: { displayName: true, userId: true } }, hospital: { select: { name: true } } },
+    include: {
+      items: true,
+      patient: { select: { displayName: true, userId: true } },
+      hospital: { select: { name: true } },
+      payments: true,
+    },
   });
+
+  await writeAuditLog(context.prisma, {
+    entityType: "invoice",
+    entityId: invoice.id,
+    actorId: context.user.id,
+    action: "created",
+    details: { billNumber: invoice.billNumber, total: invoice.total.toString() },
+  });
+
   return Response.json({ invoice }, { status: 201 });
 }
 
@@ -100,14 +136,29 @@ export async function PATCH(request) {
     return Response.json({ error: "Hospital administrator access required." }, { status: 403 });
   }
   const { invoiceId, status } = await request.json();
-  if (typeof invoiceId !== "string" || !["paid", "pending"].includes(status)) {
-    return Response.json({ error: "Select an invoice and paid or unpaid status." }, { status: 400 });
+  if (typeof invoiceId !== "string" || !["paid", "pending", "processing", "failed"].includes(status)) {
+    return Response.json({ error: "Select an invoice and valid status." }, { status: 400 });
   }
   const updated = await context.prisma.invoice.updateMany({
     where: { id: invoiceId, hospitalId: context.profile.hospitalId },
-    data: { paymentStatus: status },
+    data: {
+      paymentStatus: status,
+      paidAt: status === "paid" ? new Date() : null,
+      paymentMethod: status === "paid" ? "hospital_desk" : null,
+    },
   });
   if (!updated.count) return Response.json({ error: "Invoice not found for this hospital." }, { status: 404 });
   const invoice = await context.prisma.invoice.findUnique({ where: { id: invoiceId } });
+  await writeAuditLog(context.prisma, {
+    entityType: "invoice",
+    entityId: invoiceId,
+    actorId: context.user.id,
+    action: `status_${status}`,
+    details: { status },
+  });
+  await Promise.all([
+    publishRealtime(`billing-invoice-${invoiceId}`, "updated", { invoiceId, status }),
+    publishRealtime(`hospital-invoices-${context.profile.hospitalId}`, "updated", { invoiceId, status }),
+  ]);
   return Response.json({ invoice });
 }

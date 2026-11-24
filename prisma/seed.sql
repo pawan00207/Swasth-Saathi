@@ -76,3 +76,19 @@ VALUES
   ('dr-fatima', 'Dr. Fatima Khan', 'Rehabilitation Medicine', ARRAY['Urdu', 'Hindi', 'English'], 0, '["10:30","14:30","17:00"]'::jsonb, true),
   ('dr-arvind', 'Dr. Arvind Patel', 'Pediatrics', ARRAY['Gujarati', 'Hindi', 'English'], 0, '["09:00","12:30","16:30"]'::jsonb, true)
 ON CONFLICT ("id") DO NOTHING;
+
+INSERT INTO "service_catalog" ("id", "name", "description_en", "description_hi", "gst_rate", "category", "updated_at")
+VALUES
+  ('svc-cardiology', 'Cardiology consultation', 'Specialist heart check-up and treatment plan with a cardiologist.', 'हृदय रोग विशेषज्ञ द्वारा जांच और उपचार योजना।', 0, 'clinical', NOW()),
+  ('svc-pediatric', 'Pediatric consultation', 'Doctor check-up for infants, children, and adolescents.', 'शिशुओं और बच्चों के लिए बाल रोग विशेषज्ञ परामर्श।', 0, 'clinical', NOW()),
+  ('svc-neurology', 'Neurology consultation', 'Specialist evaluation for brain, spine, and nerve symptoms.', 'मस्तिष्क और नसों से जुड़े लक्षणों की विशेषज्ञ जांच।', 0, 'clinical', NOW()),
+  ('svc-general', 'General medicine consultation', 'Primary physician visit for fever, infections, and routine care.', 'सामान्य बुखार, संक्रमण और प्राथमिक स्वास्थ्य जांच।', 0, 'clinical', NOW()),
+  ('svc-orthopedic', 'Orthopedic consultation', 'Bone, joint, and mobility specialist consultation.', 'हड्डी, जोड़ और चलने-फिरने की समस्या का परामर्श।', 0, 'clinical', NOW()),
+  ('svc-ecg-lab', 'ECG and laboratory tests', 'Heart rhythm tracing and diagnostic blood/urine lab panels.', 'हृदय की ईसीजी जांच और रक्त/मूत्र प्रयोगशाला परीक्षण।', 0, 'diagnostics', NOW()),
+  ('svc-blood', 'Blood investigations', 'Routine blood panel to check hemoglobin, sugar, and organ markers.', 'हीमोग्लोबिन, शुगर और अंगों की जांच के लिए रक्त परीक्षण।', 0, 'diagnostics', NOW()),
+  ('svc-mri', 'MRI scan', 'Detailed magnetic imaging scan of internal organs or brain.', 'मस्तिष्क या आंतरिक अंगों की विस्तृत एमआरआई जांच।', 0, 'diagnostics', NOW()),
+  ('svc-xray', 'X-ray', 'Quick imaging scan for bones, chest, or joints.', 'हड्डियों, छाती या जोड़ों का एक्स-रे परीक्षण।', 0, 'diagnostics', NOW()),
+  ('svc-physio', 'Physiotherapy session', 'Guided rehabilitation exercises to restore movement and strength.', 'शक्ति और गति वापस लाने के लिए फिजियोथेरेपी सत्र।', 0, 'clinical', NOW()),
+  ('svc-pharmacy', 'Pharmacy', 'Prescribed hospital medicines dispensed for treatment.', 'उपचार के लिए निर्धारित अस्पताल की दवाइयां।', 12, 'pharmacy', NOW()),
+  ('svc-medicines', 'Medicines', 'Prescribed tablets, syrups, or medical supplies.', 'डॉक्टर द्वारा लिखी गई दवाइयां और चिकित्सा सामग्री।', 12, 'pharmacy', NOW())
+ON CONFLICT ("name") DO NOTHING;

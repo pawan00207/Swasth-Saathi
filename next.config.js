@@ -3,8 +3,15 @@ const webpack = require('webpack');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
 
   webpack: (config, { isServer, buildId, dev, webpack }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'sodium-native': false,
+      'sodium-javascript': false,
+    };
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

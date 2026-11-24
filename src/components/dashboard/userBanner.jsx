@@ -42,12 +42,12 @@ const UserBanner = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <div
-                        className="cursor-pointer ml-2 mr-4 h-8 text-md"
+                      <span
+                        className="cursor-pointer ml-2 mr-4 inline-flex h-8 items-center text-md"
                         onClick={handleCopyToClipboard}
                       >
                         <CopyIcon />
-                      </div>
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Copy DID</p>
@@ -68,30 +68,30 @@ const UserBanner = () => {
             </div>
             <div className="mt-3">
               <CardTitle className="text-emerald-900">User Type </CardTitle>
-              <CardDescription>
+              <div className="text-sm text-slate-500">
                 <Badge className="mt-2 text-lg bg-green-200 hover:bg-green-200">
                   {didData.userType}
                 </Badge>
-              </CardDescription>
+              </div>
             </div>
           </div>
         </CardHeader>
       </Card>
       <Card className=" text-emerald-900 bg-emerald-50">
-        <div className="grid grid-cols-2 justify-center h-full">
+        <dl className="grid grid-cols-2 justify-center h-full">
           <div className="flex flex-col items-center justify-center">
-            <dt class="mb-2 text-3xl font-extrabold">
+            <dt className="mb-2 text-3xl font-extrabold">
               {didData.userTotalrecords}
             </dt>
-            <dd class="text-gray-500 dark:text-gray-400">Health Records</dd>
+            <dd className="text-gray-500 dark:text-gray-400">Health Records</dd>
           </div>
-          <div class="flex flex-col items-center justify-center">
-            <dt class="mb-2 text-3xl font-extrabold">
+          <div className="flex flex-col items-center justify-center">
+            <dt className="mb-2 text-3xl font-extrabold">
               {didData.totalIssuersForUser}
             </dt>
-            <dd class="text-gray-500 dark:text-gray-400">Hospitals</dd>
+            <dd className="text-gray-500 dark:text-gray-400">Hospitals</dd>
           </div>
-        </div>
+        </dl>
       </Card>
     </div>
   );

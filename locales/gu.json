@@ -1,0 +1,69 @@
+{
+  "appName": "સ્વસ્થ સાથી",
+  "nav": {
+    "schemes": "યોજનાઓ",
+    "qrReports": "QR રિપોર્ટ્સ",
+    "myReports": "મારા રિપોર્ટ્સ",
+    "account": "ખાતું",
+    "appointments": "એપોઇન્ટમેન્ટ",
+    "billing": "કેર વોલેટ",
+    "route": "સુલભ માર્ગ",
+    "consult": "ટેલિકન્સલ્ટ",
+    "beds": "બેડ ઉપલબ્ધતા",
+    "sos": "SOS અને પ્રોફાઇલ",
+    "blockchain": "બ્લોકચેઇન"
+  },
+  "shell": {
+    "language": "ભાષા",
+    "machineTranslated": "મશીન-સહાયિત અનુવાદ, કૃપા કરીને ભૂલો જણાવો.",
+    "suggestCorrection": "સુધારો સૂચવો"
+  },
+  "wallet": {
+    "title": "કેર વોલેટ",
+    "subtitle": "દરેક હોસ્પિટલમાં તમારો સંપૂર્ણ સારવાર ખર્ચ, ચકાસાયેલ અને સમજાવેલ.",
+    "totalSpentYear": "આ વર્ષે કુલ ખર્ચ",
+    "paidVsDue": "ચૂકવેલ વિ. બાકી",
+    "hospitalsVisited": "મુલાકાત લીધેલ હોસ્પિટલો",
+    "estimatedSavings": "અંદાજિત યોજના બચત",
+    "gstColumn": "GST %",
+    "payNow": "હવે ચૂકવો",
+    "downloadReceipt": "રસીદ ડાઉનલોડ કરો",
+    "trustSeal": "ટ્રસ્ટ સીલ",
+    "trustSealed": "ટ્રસ્ટ સીલ્ડ"
+  },
+  "beds": {
+    "title": "ICU અને ઓક્સિજન બેડ ઉપલબ્ધતા",
+    "requestBed": "બેડ વિનંતી કરો",
+    "reportCorrection": "સુલભતા સુધારો જણાવો",
+    "emergencyNotice": "કટોકટીમાં તરત જ 108 અથવા 112 પર કૉલ કરો.",
+    "patientName": "દર્દીનું નામ",
+    "whatsappPhone": "WhatsApp નંબર (+91... સાથે)",
+    "submitRequest": "વિનંતી મોકલો",
+    "cancel": "રદ કરો"
+  },
+  "accessibility": {
+    "modalTitle": "સુલભતા સુધારો જણાવો",
+    "ramp": "રેમ્પ",
+    "elevator": "લિફ્ટ",
+    "wheelchairEntrance": "વ્હીલચેર પ્રવેશ",
+    "accessibleParking": "સુલભ પાર્કિંગ",
+    "yes": "હા",
+    "no": "ના",
+    "unknown": "અજાણ્યું",
+    "submit": "સુધારો મોકલો"
+  },
+  "sos": {
+    "buttonLabel": "SOS કટોકટી",
+    "modalTitle": "કટોકટી SOS એલર્ટ",
+    "disclaimer": "SOS એ 108/112 પર કૉલ કરવાનું પૂરક છે, વિકલ્પ નથી.",
+    "call108": "108 પર કૉલ કરો (એમ્બ્યુલન્સ)",
+    "call112": "112 પર કૉલ કરો (કટોકટી)",
+    "cancelCountdown": "SOS રદ કરો",
+    "imSafe": "હું સુરક્ષિત છું"
+  },
+  "errors": {
+    "required": "આ ફીલ્ડ જરૂરી છે.",
+    "invalidPhone": "દેશના કોડ સાથે માન્ય WhatsApp નંબર દાખલ કરો.",
+    "signInRequired": "ચાલુ રાખવા માટે કૃપા કરીને સાઇન ઇન કરો."
+  }
+}

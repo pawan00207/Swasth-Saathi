@@ -1,4 +1,5 @@
 import { getPrisma } from "../../../lib/prisma";
+import { getActiveWhatsAppProviderName, isWhatsAppConfigured } from "../../../lib/whatsapp/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ const checks = [
     test: async () => {
       const prisma = getPrisma();
       if (!prisma) return false;
-      const tables = await prisma.$queryRaw`SELECT to_regclass('"Profile"') AS profile_table`;
+      const tables = await prisma.$queryRaw`SELECT to_regclass('"Profile"')::text AS profile_table`;
       return Boolean(tables[0]?.profile_table);
     },
   },
@@ -93,6 +94,43 @@ const checks = [
         cache: "no-store",
       });
       return response.ok;
+    },
+  },
+  {
+    name: "Razorpay Webhook",
+    configured: () => Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
+    test: async () => Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
+  },
+  {
+    name: "WhatsApp Bot",
+    configured: () => isWhatsAppConfigured(getActiveWhatsAppProviderName()),
+    test: async () => {
+      const provider = getActiveWhatsAppProviderName();
+      if (provider === "twilio") {
+        const sid = process.env.TWILIO_ACCOUNT_SID;
+        const token = process.env.TWILIO_AUTH_TOKEN;
+        const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}.json`, {
+          headers: { Authorization: `Basic ${auth}` },
+          cache: "no-store",
+        });
+        return response.ok;
+      }
+      const response = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(process.env.META_WHATSAPP_PHONE_NUMBER_ID)}`, {
+        headers: { Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}` },
+        cache: "no-store",
+      });
+      return response.ok;
+    },
+  },
+  {
+    name: "SOS Emergency",
+    configured: () => Boolean(process.env.DATABASE_URL || isWhatsAppConfigured(getActiveWhatsAppProviderName())),
+    test: async () => {
+      const prisma = getPrisma();
+      if (!prisma) return false;
+      const tables = await prisma.$queryRaw`SELECT to_regclass('sos_events')::text AS sos_table`;
+      return Boolean(tables[0]?.sos_table);
     },
   },
   {

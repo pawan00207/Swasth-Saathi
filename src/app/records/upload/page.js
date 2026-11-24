@@ -153,7 +153,11 @@ export default function UploadReportPage() {
           ) : (
             <div className="rounded border border-dashed p-8 text-center text-slate-600">Upload a report to get a private-storage share QR.</div>
           )}
-          {savedId && <p className="mt-3 text-sm">Report ID: {savedId} · <a href="/records" className="underline">My Reports</a></p>}
+          {savedId && (
+            <p className="mt-3 text-sm">
+              Report ID: {savedId} · <a href="/records" className="font-semibold underline">My Reports (create 1 QR for multiple reports)</a>
+            </p>
+          )}
         </div>
       </div>
     </div>

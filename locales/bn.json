@@ -1,0 +1,69 @@
+{
+  "appName": "স্বস্থ সাথী",
+  "nav": {
+    "schemes": "প্রকল্প",
+    "qrReports": "QR রিপোর্ট",
+    "myReports": "আমার রিপোর্ট",
+    "account": "অ্যাকাউন্ট",
+    "appointments": "অ্যাপয়েন্টমেন্ট",
+    "billing": "কেয়ার ওয়ালেট",
+    "route": "সহজ রুট",
+    "consult": "টেলিকনসাল্ট",
+    "beds": "বেড উপলব্ধতা",
+    "sos": "SOS ও প্রোফাইল",
+    "blockchain": "ব্লকচেইন"
+  },
+  "shell": {
+    "language": "ভাষা",
+    "machineTranslated": "যন্ত্র-সহায়তায় অনূদিত, ভুল থাকলে জানান।",
+    "suggestCorrection": "সংশোধন প্রস্তাব করুন"
+  },
+  "wallet": {
+    "title": "কেয়ার ওয়ালেট",
+    "subtitle": "প্রতিটি হাসপাতালে আপনার সম্পূর্ণ চিকিৎসার খরচ, যাচাইকৃত এবং সহজভাবে ব্যাখ্যা করা।",
+    "totalSpentYear": "এই বছর মোট খরচ",
+    "paidVsDue": "পরিশোধিত বনাম বাকি",
+    "hospitalsVisited": "হাসপাতালের সংখ্যা",
+    "estimatedSavings": "আনুমানিক প্রকল্প সাশ্রয়",
+    "gstColumn": "GST %",
+    "payNow": "এখনই পেমেন্ট করুন",
+    "downloadReceipt": "রসিদ ডাউনলোড করুন",
+    "trustSeal": "ট্রাস্ট সিল",
+    "trustSealed": "ট্রাস্ট সিলড"
+  },
+  "beds": {
+    "title": "ICU ও অক্সিজেন বেড উপলব্ধতা",
+    "requestBed": "বেড অনুরোধ করুন",
+    "reportCorrection": "অ্যাক্সেসিবিলিটি সংশোধন জানান",
+    "emergencyNotice": "জরুরি অবস্থায় অবিলম্বে 108 বা 112 নম্বরে কল করুন।",
+    "patientName": "রোগীর নাম",
+    "whatsappPhone": "WhatsApp নম্বর (+91... সহ)",
+    "submitRequest": "অনুরোধ জমা দিন",
+    "cancel": "বাতিল করুন"
+  },
+  "accessibility": {
+    "modalTitle": "অ্যাক্সেসিবিলিটি সংশোধন জানান",
+    "ramp": "র‍্যাম্প",
+    "elevator": "লিফট",
+    "wheelchairEntrance": "হুইলচেয়ার প্রবেশপথ",
+    "accessibleParking": "অ্যাক্সেসিবল পার্কিং",
+    "yes": "হ্যাঁ",
+    "no": "না",
+    "unknown": "অজানা",
+    "submit": "সংশোধন জমা দিন"
+  },
+  "sos": {
+    "buttonLabel": "SOS জরুরি",
+    "modalTitle": "জরুরি SOS সতর্কতা",
+    "disclaimer": "SOS শুধুমাত্র সহায়ক, 108/112 কল করার বিকল্প নয়।",
+    "call108": "108 কল করুন (অ্যাম্বুলেন্স)",
+    "call112": "112 কল করুন (জরুরি)",
+    "cancelCountdown": "SOS বাতিল করুন",
+    "imSafe": "আমি নিরাপদ আছি"
+  },
+  "errors": {
+    "required": "এই ঘরটি পূরণ করা আবশ্যক।",
+    "invalidPhone": "দেশের কোডসহ সঠিক WhatsApp নম্বর লিখুন।",
+    "signInRequired": "চালিয়ে যেতে অনুগ্রহ করে সাইন ইন করুন।"
+  }
+}

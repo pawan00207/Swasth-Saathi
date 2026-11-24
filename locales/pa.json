@@ -1,0 +1,69 @@
+{
+  "appName": "ਸਵਸਥ ਸਾਥੀ",
+  "nav": {
+    "schemes": "ਸਕੀਮਾਂ",
+    "qrReports": "QR ਰਿਪੋਰਟਾਂ",
+    "myReports": "ਮੇਰੀਆਂ ਰਿਪੋਰਟਾਂ",
+    "account": "ਖਾਤਾ",
+    "appointments": "ਮੁਲਾਕਾਤਾਂ",
+    "billing": "ਕੇਅਰ ਵਾਲਿਟ",
+    "route": "ਸੁਗਮ ਰਸਤਾ",
+    "consult": "ਟੈਲੀਕੰਸਲਟ",
+    "beds": "ਬੈੱਡ ਉਪਲਬਧਤਾ",
+    "sos": "SOS ਅਤੇ ਪ੍ਰੋਫ਼ਾਈਲ",
+    "blockchain": "ਬਲੌਕਚੇਨ"
+  },
+  "shell": {
+    "language": "ਭਾਸ਼ਾ",
+    "machineTranslated": "ਮਸ਼ੀਨ-ਸਹਾਇਤਾ ਪ੍ਰਾਪਤ ਅਨੁਵਾਦ, ਕਿਰਪਾ ਕਰਕੇ ਗਲਤੀਆਂ ਦੱਸੋ।",
+    "suggestCorrection": "ਸੁਧਾਰ ਸੁਝਾਓ"
+  },
+  "wallet": {
+    "title": "ਕੇਅਰ ਵਾਲਿਟ",
+    "subtitle": "ਹਰ ਹਸਪਤਾਲ ਵਿੱਚ ਤੁਹਾਡਾ ਪੂਰਾ ਇਲਾਜ ਖਰਚ, ਤਸਦੀਕਸ਼ੁਦਾ ਅਤੇ ਸਮਝਾਇਆ ਗਿਆ।",
+    "totalSpentYear": "ਇਸ ਸਾਲ ਕੁੱਲ ਖਰਚ",
+    "paidVsDue": "ਭੁਗਤਾਨ ਬਨਾਮ ਬਾਕੀ",
+    "hospitalsVisited": "ਹਸਪਤਾਲਾਂ ਦੀ ਗਿਣਤੀ",
+    "estimatedSavings": "ਅੰਦਾਜ਼ਨ ਸਕੀਮ ਬੱਚਤ",
+    "gstColumn": "GST %",
+    "payNow": "ਹੁਣੇ ਭੁਗਤਾਨ ਕਰੋ",
+    "downloadReceipt": "ਰਸੀਦ ਡਾਊਨਲੋਡ ਕਰੋ",
+    "trustSeal": "ਟਰੱਸਟ ਸੀਲ",
+    "trustSealed": "ਟਰੱਸਟ ਸੀਲਡ"
+  },
+  "beds": {
+    "title": "ICU ਅਤੇ ਆਕਸੀਜਨ ਬੈੱਡ ਉਪਲਬਧਤਾ",
+    "requestBed": "ਬੈੱਡ ਦੀ ਬੇਨਤੀ ਕਰੋ",
+    "reportCorrection": "ਪਹੁੰਚਯੋਗਤਾ ਸੁਧਾਰ ਦੱਸੋ",
+    "emergencyNotice": "ਐਮਰਜੈਂਸੀ ਵਿੱਚ ਤੁਰੰਤ 108 ਜਾਂ 112 'ਤੇ ਕਾਲ ਕਰੋ।",
+    "patientName": "ਮਰੀਜ਼ ਦਾ ਨਾਮ",
+    "whatsappPhone": "WhatsApp ਨੰਬਰ (+91... ਸਮੇਤ)",
+    "submitRequest": "ਬੇਨਤੀ ਭੇਜੋ",
+    "cancel": "ਰੱਦ ਕਰੋ"
+  },
+  "accessibility": {
+    "modalTitle": "ਪਹੁੰਚਯੋਗਤਾ ਸੁਧਾਰ ਦੱਸੋ",
+    "ramp": "ਰੈਂਪ",
+    "elevator": "ਲਿਫਟ",
+    "wheelchairEntrance": "ਵ੍ਹੀਲਚੇਅਰ ਪ੍ਰਵੇਸ਼",
+    "accessibleParking": "ਪਹੁੰਚਯੋਗ ਪਾਰਕਿੰਗ",
+    "yes": "ਹਾਂ",
+    "no": "ਨਹੀਂ",
+    "unknown": "ਅਣਜਾਣ",
+    "submit": "ਸੁਧਾਰ ਜਮ੍ਹਾਂ ਕਰੋ"
+  },
+  "sos": {
+    "buttonLabel": "SOS ਐਮਰਜੈਂਸੀ",
+    "modalTitle": "ਐਮਰਜੈਂਸੀ SOS ਅਲਰਟ",
+    "disclaimer": "SOS ਸਿਰਫ਼ ਸਹਾਇਕ ਹੈ, 108/112 'ਤੇ ਕਾਲ ਕਰਨ ਦਾ ਬਦਲ ਨਹੀਂ।",
+    "call108": "108 'ਤੇ ਕਾਲ ਕਰੋ (ਐਂਬੂਲੈਂਸ)",
+    "call112": "112 'ਤੇ ਕਾਲ ਕਰੋ (ਐਮਰਜੈਂਸੀ)",
+    "cancelCountdown": "SOS ਰੱਦ ਕਰੋ",
+    "imSafe": "ਮੈਂ ਸੁਰੱਖਿਅਤ ਹਾਂ"
+  },
+  "errors": {
+    "required": "ਇਹ ਖੇਤਰ ਲੋੜੀਂਦਾ ਹੈ।",
+    "invalidPhone": "ਦੇਸ਼ ਕੋਡ ਸਮੇਤ ਸਹੀ WhatsApp ਨੰਬਰ ਦਰਜ ਕਰੋ।",
+    "signInRequired": "ਜਾਰੀ ਰੱਖਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਸਾਈਨ ਇਨ ਕਰੋ।"
+  }
+}
