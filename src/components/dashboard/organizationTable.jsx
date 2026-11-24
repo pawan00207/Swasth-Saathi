@@ -135,12 +135,12 @@ export function OrganizationTable() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <div
-                        className="cursor-pointer ml-2 mr-4  text-md"
+                      <span
+                        className="cursor-pointer ml-2 mr-4 inline-flex items-center text-md"
                         onClick={handleCopyToClipboard}
                       >
                         <CopyIcon />
-                      </div>
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Copy DID</p>
@@ -215,7 +215,9 @@ export function OrganizationTable() {
                     <Button
                       onClick={() => {
                         setImageState(image);
-                        router.push(`/viewRecord`);
+                        router.push(`/viewRecord`).catch((error) => {
+                          if (!error?.cancelled) console.error(error);
+                        });
                       }}
                       className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500 mt-4"
                     >

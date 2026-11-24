@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Send } from "lucide-react";
 
 export default function SetupStatusPage() {
   const [integrations, setIntegrations] = useState([]);
   const [checkedAt, setCheckedAt] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [testPhone, setTestPhone] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
+  const [testStatus, setTestStatus] = useState("");
+  const [testError, setTestError] = useState("");
 
   async function refresh() {
     setLoading(true);
@@ -24,16 +30,45 @@ export default function SetupStatusPage() {
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  async function sendTestWhatsapp(event) {
+    event.preventDefault();
+    setTestBusy(true);
+    setTestStatus("");
+    setTestError("");
+    try {
+      const response = await fetch("/api/whatsapp/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testPhone }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not send test WhatsApp message.");
+      setTestStatus(`Test message sent via ${result.provider} to ${result.recipientMask} (status: ${result.status}).`);
+    } catch (err) {
+      setTestError(err.message);
+    } finally {
+      setTestBusy(false);
+    }
+  }
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-teal-900">Integration setup status</h1>
-          <p className="mt-2 text-slate-600">Only configuration and connectivity status are shown. Secret values are never sent to this page.</p>
+          <p className="mt-2 text-slate-600">
+            Only configuration and connectivity status are shown. Secret values are never sent to this page.
+          </p>
         </div>
-        <button onClick={refresh} disabled={loading} className="rounded border border-teal-800 px-4 py-2 text-teal-900 disabled:opacity-60">
+        <button
+          onClick={refresh}
+          disabled={loading}
+          className="min-h-[44px] rounded border border-teal-800 px-4 py-2 font-semibold text-teal-900 disabled:opacity-60"
+        >
           {loading ? "Checking..." : "Check again"}
         </button>
       </div>
@@ -44,16 +79,62 @@ export default function SetupStatusPage() {
           <article key={integration.name} className="rounded-lg border bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <h2 className="font-bold">{integration.name}</h2>
-              <span className={`rounded px-2 py-1 text-xs font-bold ${integration.ok ? "bg-green-100 text-green-900" : integration.configured ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-950"}`}>
+              <span
+                className={`rounded px-2 py-1 text-xs font-bold ${
+                  integration.ok
+                    ? "bg-green-100 text-green-900"
+                    : integration.configured
+                      ? "bg-red-100 text-red-900"
+                      : "bg-amber-100 text-amber-950"
+                }`}
+              >
                 {integration.ok ? "LIVE · OK" : integration.configured ? "CONFIGURED · TEST FAILED" : "DEMO DATA"}
               </span>
             </div>
-            <p className="mt-2 text-sm text-slate-700">Environment keys: {integration.configured ? "present" : "missing"}</p>
-            <p className="mt-1 text-sm text-slate-700">Live test: {integration.ok ? "succeeded" : integration.configured ? "failed or unavailable" : "not run"}</p>
+            <p className="mt-2 text-sm text-slate-700">
+              Environment keys: {integration.configured ? "present" : "missing"}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">
+              Live test: {integration.ok ? "succeeded" : integration.configured ? "failed or unavailable" : "not run"}
+            </p>
           </article>
         ))}
       </div>
-      {checkedAt && <p className="mt-4 text-sm text-slate-500">Last checked: {new Date(checkedAt).toLocaleString()}</p>}
+
+      {/* WhatsApp Test Trigger */}
+      <section className="mt-8 rounded-xl border bg-white p-5">
+        <h2 className="text-lg font-bold text-slate-950">Send test WhatsApp</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Verify your configured WhatsApp provider (Twilio Sandbox or Meta Cloud API) by sending a test alert.
+        </p>
+        <form onSubmit={sendTestWhatsapp} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="text-sm font-semibold">
+            Recipient WhatsApp number (with country code)
+            <input
+              required
+              type="tel"
+              placeholder="+919876543210"
+              className="mt-1 block min-h-[44px] w-64 rounded border border-slate-400 px-3 py-2"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={testBusy}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded bg-teal-800 px-4 py-2 font-bold text-white disabled:opacity-60"
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+            <span>{testBusy ? "Sending..." : "Send test WhatsApp"}</span>
+          </button>
+        </form>
+        {testStatus && <p role="status" className="mt-3 rounded bg-green-50 p-3 text-sm font-semibold text-green-950">{testStatus}</p>}
+        {testError && <p role="alert" className="mt-3 rounded bg-red-50 p-3 text-sm font-semibold text-red-950">{testError}</p>}
+      </section>
+
+      {checkedAt && (
+        <p className="mt-4 text-sm text-slate-500">Last checked: {new Date(checkedAt).toLocaleString()}</p>
+      )}
     </main>
   );
 }

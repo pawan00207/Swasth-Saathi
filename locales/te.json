@@ -1,0 +1,69 @@
+{
+  "appName": "స్వస్థ్ సాథీ",
+  "nav": {
+    "schemes": "పథకాలు",
+    "qrReports": "QR నివేదికలు",
+    "myReports": "నా నివేదికలు",
+    "account": "ఖాతా",
+    "appointments": "అపాయింట్‌మెంట్లు",
+    "billing": "కేర్ వాలెట్",
+    "route": "సులభ మార్గం",
+    "consult": "టెలికన్సల్ట్",
+    "beds": "పడకల లభ్యత",
+    "sos": "SOS & ప్రొఫైల్",
+    "blockchain": "బ్లాక్‌చెయిన్"
+  },
+  "shell": {
+    "language": "భాష",
+    "machineTranslated": "యాంత్రిక అనువాదం, దయచేసి లోపాలను తెలియజేయండి.",
+    "suggestCorrection": "సవరణ సూచించండి"
+  },
+  "wallet": {
+    "title": "కేర్ వాలెట్",
+    "subtitle": "ప్రతి ఆసుపత్రిలో మీ పూర్తి చికిత్స ఖర్చు, ధృవీకరించబడింది మరియు వివరించబడింది.",
+    "totalSpentYear": "ఈ సంవత్సరం మొత్తం ఖర్చు",
+    "paidVsDue": "చెల్లించినది vs బకాయి",
+    "hospitalsVisited": "సందర్శించిన ఆసుపత్రులు",
+    "estimatedSavings": "అంచనా పథకం పొదుపు",
+    "gstColumn": "GST %",
+    "payNow": "ఇప్పుడే చెల్లించండి",
+    "downloadReceipt": "రసీదు డౌన్‌లోడ్ చేయండి",
+    "trustSeal": "ట్రస్ట్ సీల్",
+    "trustSealed": "ట్రస్ట్ సీల్ చేయబడింది"
+  },
+  "beds": {
+    "title": "ICU & ఆక్సిజన్ పడకల లభ్యత",
+    "requestBed": "పడక అభ్యర్థించండి",
+    "reportCorrection": "యాక్సెసిబిలిటీ సవరణ నివేదించండి",
+    "emergencyNotice": "అత్యవసర పరిస్థితిలో వెంటనే 108 లేదా 112 కు కాల్ చేయండి.",
+    "patientName": "రోగి పేరు",
+    "whatsappPhone": "WhatsApp నంబర్ (+91... తో)",
+    "submitRequest": "అభ్యర్థన పంపండి",
+    "cancel": "రద్దు చేయండి"
+  },
+  "accessibility": {
+    "modalTitle": "యాక్సెసిబిలిటీ సవరణ నివేదించండి",
+    "ramp": "ర్యాంప్",
+    "elevator": "లిఫ్ట్",
+    "wheelchairEntrance": "వీల్‌చైర్ ప్రవేశం",
+    "accessibleParking": "సులభ పార్కింగ్",
+    "yes": "అవును",
+    "no": "కాదు",
+    "unknown": "తెలియదు",
+    "submit": "సవరణ సమర్పించండి"
+  },
+  "sos": {
+    "buttonLabel": "SOS అత్యవసరం",
+    "modalTitle": "అత్యవసర SOS హెచ్చరిక",
+    "disclaimer": "SOS 108/112 కు కాల్ చేయడానికి సహాయకం మాత్రమే, ప్రత్యామ్నాయం కాదు.",
+    "call108": "108 కాల్ చేయండి (అంబులెన్స్)",
+    "call112": "112 కాల్ చేయండి (అత్యవసరం)",
+    "cancelCountdown": "SOS రద్దు చేయండి",
+    "imSafe": "నేను సురక్షితంగా ఉన్నాను"
+  },
+  "errors": {
+    "required": "ఈ ఫీల్డ్ అవసరం.",
+    "invalidPhone": "దేశం కోడ్‌తో సరైన WhatsApp నంబర్ నమోదు చేయండి.",
+    "signInRequired": "కొనసాగడానికి దయచేసి సైన్ ఇన్ చేయండి."
+  }
+}

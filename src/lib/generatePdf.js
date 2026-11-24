@@ -1,24 +1,55 @@
 import { jsPDF } from "jspdf";
 
-async function loadHindiFont(document) {
-  const response = await fetch("/fonts/NotoSansDevanagari-Regular.ttf");
-  if (!response.ok) throw new Error("The bundled Devanagari font could not be loaded.");
+const SCRIPT_FONTS = {
+  hi: { file: "NotoSansDevanagari-Regular.ttf", family: "NotoDevanagari" },
+  mr: { file: "NotoSansDevanagari-Regular.ttf", family: "NotoDevanagari" },
+  bn: { file: "NotoSansBengali-Regular.ttf", family: "NotoBengali" },
+  ta: { file: "NotoSansTamil-Regular.ttf", family: "NotoTamil" },
+  te: { file: "NotoSansTelugu-Regular.ttf", family: "NotoTelugu" },
+  gu: { file: "NotoSansGujarati-Regular.ttf", family: "NotoGujarati" },
+  pa: { file: "NotoSansGurmukhi-Regular.ttf", family: "NotoGurmukhi" },
+  en: { file: "NotoSansDevanagari-Regular.ttf", family: "NotoDevanagari" },
+};
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+async function loadFontIntoDoc(document, fontMeta) {
+  const response = await fetch(`/fonts/${fontMeta.file}`);
+  if (!response.ok) throw new Error(`The bundled font ${fontMeta.file} could not be loaded.`);
   const buffer = await response.arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-  document.addFileToVFS("NotoSansDevanagari-Regular.ttf", btoa(binary));
-  document.addFont("NotoSansDevanagari-Regular.ttf", "NotoDevanagari", "normal");
+  document.addFileToVFS(fontMeta.file, bytesToBase64(bytes));
+  document.addFont(fontMeta.file, fontMeta.family, "normal");
+  return fontMeta.family;
+}
+
+async function loadScriptFont(document, locale = "en") {
+  const primary = SCRIPT_FONTS[String(locale || "en").slice(0, 2)] || SCRIPT_FONTS.en;
+  try {
+    return await loadFontIntoDoc(document, primary);
+  } catch (err) {
+    if (primary.file !== SCRIPT_FONTS.en.file) {
+      return loadFontIntoDoc(document, SCRIPT_FONTS.en);
+    }
+    throw err;
+  }
 }
 
 /**
- * Generate a consistent paginated PDF using the bundled Devanagari font.
- * @param {{fileName:string,title:string,watermark?:string,returnBlob?:boolean,draw:(document:import("jspdf").jsPDF,fontFamily:string)=>void|Promise<void>}} options
+ * Generate a consistent paginated PDF using bundled Noto Sans multi-script fonts.
+ * @param {{fileName:string,title:string,watermark?:string,locale?:string,returnBlob?:boolean,draw:(document:import("jspdf").jsPDF,fontFamily:string)=>void|Promise<void>}} options
  */
-export async function generatePdf({ fileName, title, watermark = "DEMO PROJECT", returnBlob = false, draw }) {
+export async function generatePdf({ fileName, title, watermark = "DEMO PROJECT", locale = "en", returnBlob = false, draw }) {
   const document = new jsPDF({ unit: "mm", format: "a4" });
-  await loadHindiFont(document);
-  const fontFamily = "NotoDevanagari";
+  const fontFamily = await loadScriptFont(document, locale);
 
   document.setTextColor(30, 41, 59);
   await draw(document, fontFamily);

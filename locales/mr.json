@@ -1,0 +1,69 @@
+{
+  "appName": "स्वस्थ साथी",
+  "nav": {
+    "schemes": "योजना",
+    "qrReports": "QR अहवाल",
+    "myReports": "माझे अहवाल",
+    "account": "खाते",
+    "appointments": "भेटी",
+    "billing": "केअर वॉलेट",
+    "route": "सुलभ मार्ग",
+    "consult": "टेलिकन्सल्ट",
+    "beds": "बेड उपलब्धता",
+    "sos": "SOS आणि प्रोफाइल",
+    "blockchain": "ब्लॉकचेन"
+  },
+  "shell": {
+    "language": "भाषा",
+    "machineTranslated": "यंत्र-सहाय्यित भाषांतर, कृपया त्रुटी कळवा.",
+    "suggestCorrection": "दुरुस्ती सुचवा"
+  },
+  "wallet": {
+    "title": "केअर वॉलेट",
+    "subtitle": "प्रत्येक रुग्णालयातील तुमचा संपूर्ण उपचाराचा खर्च, सत्यापित आणि सोप्या भाषेत समजावलेला.",
+    "totalSpentYear": "या वर्षीचा एकूण खर्च",
+    "paidVsDue": "भरलेले वि. बाकी",
+    "hospitalsVisited": "भेट दिलेली रुग्णालये",
+    "estimatedSavings": "अंदाजे योजना बचत",
+    "gstColumn": "GST %",
+    "payNow": "आता पैसे भरा",
+    "downloadReceipt": "पावती डाउनलोड करा",
+    "trustSeal": "ट्रस्ट सील",
+    "trustSealed": "ट्रस्ट सील्ड"
+  },
+  "beds": {
+    "title": "ICU आणि ऑक्सिजन बेड उपलब्धता",
+    "requestBed": "बेडची विनंती करा",
+    "reportCorrection": "सुलभता दुरुस्ती कळवा",
+    "emergencyNotice": "आणीबाणीच्या वेळी त्वरित 108 किंवा 112 वर कॉल करा.",
+    "patientName": "रुग्णाचे नाव",
+    "whatsappPhone": "WhatsApp क्रमांक (+91... सह)",
+    "submitRequest": "विनंती पाठवा",
+    "cancel": "रद्द करा"
+  },
+  "accessibility": {
+    "modalTitle": "सुलभता दुरुस्ती कळवा",
+    "ramp": "रॅम्प",
+    "elevator": "लिफ्ट",
+    "wheelchairEntrance": "व्हीलचेअर प्रवेश",
+    "accessibleParking": "सुलभ पार्किंग",
+    "yes": "होय",
+    "no": "नाही",
+    "unknown": "माहित नाही",
+    "submit": "दुरुस्ती पाठवा"
+  },
+  "sos": {
+    "buttonLabel": "SOS आणीबाणी",
+    "modalTitle": "आणीबाणी SOS सूचना",
+    "disclaimer": "SOS हे 108/112 कॉल करण्यास पूरक आहे, पर्याय नाही.",
+    "call108": "108 वर कॉल करा (रुग्णवाहिका)",
+    "call112": "112 वर कॉल करा (आणीबाणी)",
+    "cancelCountdown": "SOS रद्द करा",
+    "imSafe": "मी सुरक्षित आहे"
+  },
+  "errors": {
+    "required": "हे क्षेत्र आवश्यक आहे.",
+    "invalidPhone": "देश कोडसह वैध WhatsApp क्रमांक टाका.",
+    "signInRequired": "पुढे जाण्यासाठी कृपया साइन इन करा."
+  }
+}

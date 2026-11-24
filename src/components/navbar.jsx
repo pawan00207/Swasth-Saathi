@@ -14,10 +14,11 @@ import Link from "next/link";
 
 const Navbar = () => {
   const [didData, setDidData] = useRecoilState(didState);
-  const formattedDid = `${didData.did.slice(8, 16)}...${didData.did.slice(-8)}`;
+  const didValue = didData?.did || "";
+  const formattedDid = didValue ? `${didValue.slice(8, 16)}...${didValue.slice(-8)}` : "Demo DID";
 
   function handleCopyToClipboard() {
-    navigator.clipboard.writeText(didData.did);
+    if (didValue) navigator.clipboard.writeText(didValue);
   }
   const bgColor =
     didData.userType === "organization" ? "bg-cyan-600" : "bg-emerald-800";

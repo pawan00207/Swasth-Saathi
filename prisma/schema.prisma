@@ -8,21 +8,27 @@ datasource db {
 }
 
 model Profile {
-  userId           String              @id
-  displayName      String              @default("")
-  role             String              @default("patient")
-  hospitalId       String?
-  emergencyContact String?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  hospital         Hospital?           @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
-  savedSchemes     SavedScheme[]
-  reports          Report[]
-  shareTokens      ReportShareToken[]  @relation("ShareOwner")
-  appointments     Appointment[]       @relation("AppointmentPatient")
-  bedRequests      BedRequest[]
-  invoices         Invoice[]           @relation("InvoicePatient")
-  bedAudits        BedInventoryAudit[] @relation("BedAuditActor")
+  userId             String                   @id
+  displayName        String                   @default("")
+  role               String                   @default("patient")
+  hospitalId         String?
+  emergencyContact   String?
+  preferredLanguage  String                   @default("en")
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  hospital           Hospital?                @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  savedSchemes       SavedScheme[]
+  reports            Report[]
+  shareTokens        ReportShareToken[]       @relation("ShareOwner")
+  reportBundleTokens ReportBundleShareToken[]
+  appointments       Appointment[]            @relation("AppointmentPatient")
+  bedRequests        BedRequest[]
+  invoices           Invoice[]                @relation("InvoicePatient")
+  bedAudits          BedInventoryAudit[]      @relation("BedAuditActor")
+  emergencyProfile   EmergencyProfile?
+  emergencyContacts  EmergencyContact[]
+  sosEvents          SosEvent[]
+  emergencyCards     EmergencyCardToken[]
 }
 
 model Scheme {
@@ -69,6 +75,8 @@ model Hospital {
   accessibleParking         Boolean?
   accessibilitySource       String                    @default("osm")
   accessibilityLastVerified DateTime?
+  staffWhatsapp             String?
+  staffUpdatedAt            DateTime?
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
   admins                    Profile[]
@@ -78,6 +86,7 @@ model Hospital {
   appointments              Appointment[]
   invoices                  Invoice[]
   accessibilityCorrections  AccessibilityCorrection[]
+  sosEvents                 SosEvent[]
 
   @@unique([name, city])
 }
@@ -107,18 +116,26 @@ model BedInventoryAudit {
 }
 
 model BedRequest {
-  id           String   @id @default(cuid())
-  userId       String
-  hospitalId   String
-  bedType      String
-  patientName  String
-  patientPhone String
-  urgency      String   @default("routine")
-  status       String   @default("pending")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  hospital     Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String
+  hospitalId       String
+  bedType          String
+  patientName      String
+  patientPhone     String
+  patientAge       Int?
+  patientGender    String?
+  whatsappPhone    String?
+  reason           String?
+  attendantName    String?
+  attendantPhone   String?
+  attachedReportId String?
+  whatsappConsent  Boolean  @default(false)
+  urgency          String   @default("routine")
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  hospital         Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
 
   @@index([hospitalId, createdAt])
   @@index([userId, createdAt])
@@ -173,12 +190,17 @@ model Invoice {
   paymentStatus      String                  @default("pending")
   razorpayOrderId    String?                 @unique
   razorpayPaymentId  String?
+  paidAt             DateTime?
+  paymentMethod      String?
+  billHash           String?
+  whatsappConsent    Boolean                 @default(false)
   demo               Boolean                 @default(false)
   createdAt          DateTime                @default(now())
   patient            Profile                 @relation("InvoicePatient", fields: [patientId], references: [userId], onDelete: Cascade)
   hospital           Hospital?               @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
   items              InvoiceItem[]
   verificationTokens BillVerificationToken[]
+  payments           Payment[]
 
   @@index([patientId, createdAt])
 }
@@ -265,15 +287,170 @@ model ReportView {
 }
 
 model AccessibilityCorrection {
-  id            String   @id @default(cuid())
-  hospitalId    String
-  userId        String?
-  field         String
-  reportedValue Boolean
-  note          String?
-  status        String   @default("pending")
-  createdAt     DateTime @default(now())
-  hospital      Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  hospitalId         String
+  userId             String?
+  field              String
+  reportedValue      Boolean
+  ramp               String?
+  elevator           String?
+  wheelchairEntrance String?
+  accessibleParking  String?
+  photoUrl           String?
+  note               String?
+  status             String    @default("pending")
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  hospital           Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
 
   @@index([hospitalId, status, createdAt])
+}
+
+model ServiceCatalog {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  descriptionEn String   @map("description_en")
+  descriptionHi String   @map("description_hi")
+  gstRate       Decimal  @default(0) @map("gst_rate")
+  category      String   @default("clinical")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("service_catalog")
+}
+
+model Payment {
+  id                String    @id @default(cuid())
+  invoiceId         String    @map("invoice_id")
+  razorpayOrderId   String?   @map("razorpay_order_id")
+  razorpayPaymentId String?   @unique @map("razorpay_payment_id")
+  status            String
+  amount            Decimal
+  currency          String    @default("INR")
+  method            String?
+  rawEvent          String?   @map("raw_event")
+  paidAt            DateTime? @map("paid_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, createdAt])
+  @@map("payments")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  actorId    String?  @map("actor_id")
+  action     String
+  details    Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+model MessageLog {
+  id            String   @id @default(cuid())
+  direction     String
+  provider      String
+  recipientMask String   @map("recipient_mask")
+  messageType   String   @map("message_type")
+  status        String
+  externalId    String?  @map("external_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("messages_log")
+}
+
+model EmergencyProfile {
+  userId            String   @id @map("user_id")
+  fullName          String   @default("") @map("full_name")
+  bloodGroup        String   @default("") @map("blood_group")
+  allergies         String   @default("")
+  conditions        String   @default("")
+  medicines         String   @default("")
+  preferredLanguage String   @default("en") @map("preferred_language")
+  cardEnabled       Boolean  @default(false) @map("card_enabled")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  profile           Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("emergency_profiles")
+}
+
+model EmergencyContact {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  name          String
+  whatsappPhone String    @map("whatsapp_phone")
+  relation      String    @default("Family")
+  optInStatus   String    @default("pending") @map("opt_in_status")
+  optInSentAt   DateTime? @map("opt_in_sent_at")
+  optedInAt     DateTime? @map("opted_in_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  profile       Profile   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([whatsappPhone])
+  @@map("emergency_contacts")
+}
+
+model SosEvent {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  status            String    @default("sent")
+  isDrill           Boolean   @default(false) @map("is_drill")
+  latitude          Float?
+  longitude         Float?
+  addressText       String?   @map("address_text")
+  neededBedType     String    @default("ICU") @map("needed_bed_type")
+  hospitalId        String?   @map("hospital_id")
+  trackingTokenHash String?   @unique @map("tracking_token_hash")
+  trackingExpiresAt DateTime? @map("tracking_expires_at")
+  trackingRevokedAt DateTime? @map("tracking_revoked_at")
+  acknowledgedBy    String?   @map("acknowledged_by")
+  acknowledgedAt    DateTime? @map("acknowledged_at")
+  resolvedAt        DateTime? @map("resolved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  profile           Profile   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  hospital          Hospital? @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("sos_events")
+}
+
+model EmergencyCardToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime? @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  profile   Profile   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("emergency_card_tokens")
+}
+
+model ReportBundleShareToken {
+  id            String    @id @default(cuid())
+  ownerId       String    @map("owner_id")
+  reportIds     String[]  @default([]) @map("report_ids")
+  tokenHash     String    @unique @map("token_hash")
+  pinSalt       String?   @map("pin_salt")
+  pinHash       String?   @map("pin_hash")
+  expiresAt     DateTime? @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
+  viewCount     Int       @default(0) @map("view_count")
+  wrongAttempts Int       @default(0) @map("wrong_attempts")
+  lockedUntil   DateTime? @map("locked_until")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  owner         Profile   @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@map("report_bundle_share_tokens")
 }

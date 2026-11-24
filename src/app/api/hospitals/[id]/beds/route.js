@@ -1,11 +1,13 @@
 import { requireUser } from "../../../../../lib/api-auth";
 import { publishRealtime } from "../../../../../lib/realtime-server";
+import { writeAuditLog } from "../../../../../lib/audit";
 
 const bedTypes = {
   icu: "ICU",
   oxygen: "Oxygen",
   general: "General",
   ventilator: "Ventilator",
+  pediatric: "Pediatric",
 };
 
 export async function GET(request, { params }) {
@@ -14,7 +16,7 @@ export async function GET(request, { params }) {
   if (context.profile.role !== "hospital_admin" || context.profile.hospitalId !== params.id) {
     return Response.json({ error: "You are not the administrator for this hospital." }, { status: 403 });
   }
-  const [inventory, audit] = await Promise.all([
+  const [inventory, audit, hospital] = await Promise.all([
     context.prisma.bedInventory.findMany({ where: { hospitalId: params.id }, orderBy: { bedType: "asc" } }),
     context.prisma.bedInventoryAudit.findMany({
       where: { hospitalId: params.id },
@@ -22,8 +24,12 @@ export async function GET(request, { params }) {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    context.prisma.hospital.findUnique({
+      where: { id: params.id },
+      select: { staffWhatsapp: true, staffUpdatedAt: true },
+    }),
   ]);
-  return Response.json({ inventory, audit });
+  return Response.json({ inventory, audit, hospital });
 }
 
 export async function PUT(request, { params }) {
@@ -33,16 +39,19 @@ export async function PUT(request, { params }) {
     return Response.json({ error: "You are not the administrator for this hospital." }, { status: 403 });
   }
   const body = await request.json();
-  const availableCounts = Object.fromEntries(Object.entries(bedTypes).map(([field, type]) => [type, Number(body[field])]));
+  const availableCounts = Object.fromEntries(
+    Object.entries(bedTypes).map(([field, type]) => [type, Number(body[field] ?? 0)]),
+  );
   if (Object.values(availableCounts).some((count) => !Number.isInteger(count) || count < 0)) {
     return Response.json({ error: "Bed counts must be non-negative whole numbers." }, { status: 400 });
   }
   const accessibility = body.accessibility;
   const accessibilityFields = ["ramp", "elevator", "wheelchairEntrance", "accessibleParking"];
-  if (accessibility && accessibilityFields.some((field) => accessibility[field] !== null && typeof accessibility[field] !== "boolean")) {
+  if (accessibility && accessibilityFields.some((field) => accessibility[field] !== null && accessibility[field] !== undefined && typeof accessibility[field] !== "boolean")) {
     return Response.json({ error: "Accessibility fields must be yes, no, or unknown." }, { status: 400 });
   }
 
+  const now = new Date();
   const result = await context.prisma.$transaction(async (transaction) => {
     const changes = [];
     for (const [bedType, available] of Object.entries(availableCounts)) {
@@ -61,7 +70,10 @@ export async function PUT(request, { params }) {
     await transaction.bedInventoryAudit.create({
       data: { hospitalId: params.id, actorId: context.user.id, changes },
     });
-    const hospitalUpdate = { demo: false };
+    const hospitalUpdate = { demo: false, staffUpdatedAt: now };
+    if (typeof body.staffWhatsapp === "string" && body.staffWhatsapp.trim()) {
+      hospitalUpdate.staffWhatsapp = body.staffWhatsapp.trim().slice(0, 32);
+    }
     if (accessibility && accessibilityFields.every((field) => typeof accessibility[field] === "boolean")) {
       Object.assign(hospitalUpdate, {
         ramp: accessibility.ramp,
@@ -69,13 +81,22 @@ export async function PUT(request, { params }) {
         wheelchairEntrance: accessibility.wheelchairEntrance,
         accessibleParking: accessibility.accessibleParking,
         accessibilitySource: "staff-verified",
-        accessibilityLastVerified: new Date(),
+        accessibilityLastVerified: now,
       });
     }
     await transaction.hospital.update({ where: { id: params.id }, data: hospitalUpdate });
     return transaction.bedInventory.findMany({ where: { hospitalId: params.id }, orderBy: { bedType: "asc" } });
   });
-  const updatedAt = result.reduce((latest, bed) => bed.updatedAt > latest ? bed.updatedAt : latest, new Date(0)).toISOString();
+
+  await writeAuditLog(context.prisma, {
+    entityType: "bed_inventory",
+    entityId: params.id,
+    actorId: context.user.id,
+    action: "staff_updated",
+    details: { availableCounts },
+  });
+
+  const updatedAt = now.toISOString();
   await publishRealtime("bed-inventory-live", "updated", { hospitalId: params.id, updatedAt });
   return Response.json({
     hospital: { id: params.id, bedInventory: result },

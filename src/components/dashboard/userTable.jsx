@@ -159,7 +159,9 @@ export function UserTable() {
                     <Button
                       onClick={() => {
                         setImageState(image);
-                        router.push(`/viewRecord`);
+                        router.push(`/viewRecord`).catch((error) => {
+                          if (!error?.cancelled) console.error(error);
+                        });
                       }}
                       className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500 mt-4"
                     >

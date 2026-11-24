@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 function mapHospital(hospital) {
   const beds = Object.fromEntries((hospital.bedInventory || []).map((bed) => [bed.bedType.toLowerCase(), bed.available]));
   const updatedAt = (hospital.bedInventory || []).map((bed) => bed.updatedAt).sort((a, b) => b - a)[0];
+  const staffUpdatedAt = hospital.staffUpdatedAt
+    ? hospital.staffUpdatedAt.toISOString()
+    : (!hospital.demo && updatedAt ? updatedAt.toISOString() : null);
   return {
     ...hospital,
     lat: hospital.latitude,
@@ -15,9 +18,10 @@ function mapHospital(hospital) {
     oxygen: beds.oxygen || 0,
     general: beds.general || 0,
     ventilator: beds.ventilator || 0,
-    pediatric: 0,
-    priceRange: "Not provided",
-    lastUpdated: updatedAt?.toISOString() || hospital.updatedAt.toISOString(),
+    pediatric: beds.pediatric || 0,
+    priceRange: hospital.priceRange || "Not provided",
+    lastUpdated: staffUpdatedAt || updatedAt?.toISOString() || hospital.updatedAt.toISOString(),
+    staffUpdatedAt,
     accessibility: {
       ramp: hospital.ramp,
       elevator: hospital.elevator,
@@ -43,8 +47,10 @@ export async function GET(request) {
       if (rows.length) {
         const hospitals = rows.map(mapHospital);
         const matches = city ? hospitals.filter((hospital) => hospital.city?.toLowerCase() === city.toLowerCase()) : hospitals;
+        const hasStaffUpdated = rows.some((hospital) => !hospital.demo || Boolean(hospital.staffUpdatedAt));
         return Response.json({
-          source: rows.some((hospital) => !hospital.demo) ? "prisma-live" : "prisma-demo",
+          source: hasStaffUpdated ? "prisma-live" : "prisma-demo",
+          hasStaffUpdated,
           hospitals: matches,
           updatedAt: new Date().toISOString(),
         }, { headers: { "Cache-Control": "no-store" } });
@@ -70,6 +76,7 @@ export async function GET(request) {
         if (liveHospitals.length) {
           return Response.json({
             source: "live-hms",
+            hasStaffUpdated: true,
             hospitals: city ? liveHospitals.filter((hospital) => hospital.city?.toLowerCase() === city.toLowerCase()) : liveHospitals,
             updatedAt: new Date().toISOString(),
           }, { headers: { "Cache-Control": "no-store" } });
@@ -82,6 +89,7 @@ export async function GET(request) {
   }
   return Response.json({
     source: "seeded-demo",
+    hasStaffUpdated: false,
     upstreamStatus,
     hospitals: city ? seed.filter((hospital) => hospital.city.toLowerCase() === city.toLowerCase()) : seed,
     updatedAt: new Date().toISOString(),

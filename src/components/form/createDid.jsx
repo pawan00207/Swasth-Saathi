@@ -60,15 +60,21 @@ export default function CreateDid({ name, year, userType }) {
   }
 
   async function handleClick() {
+    if (loading) return;
     setLoading(true);
     setText("Please wait while we create your DID");
     const did = await generateDidAndConfigure();
-    console.log(did);
     setText("DID created successfully!");
-    setLoading(false);
     // update recoil state
     setDidData({ did: did, name: name, year: year, userType: userType });
-    router.push("/dashboard");
+    try {
+      await router.push("/dashboard");
+    } catch (error) {
+      if (!error?.cancelled) {
+        console.error("Failed to navigate to dashboard", error);
+        setLoading(false);
+      }
+    }
   }
 
   return (
@@ -81,8 +87,10 @@ export default function CreateDid({ name, year, userType }) {
 
       <br />
       <Button
+        type="button"
+        disabled={loading}
         onClick={handleClick}
-        className="w-32 bg-emerald-700 hover:bg-emerald-400"
+        className="w-32 bg-emerald-700 hover:bg-emerald-400 disabled:opacity-70"
       >
         {loading ? (
           <div className="flex gap-2">

@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "postinstall": "prisma generate",
     "build": "prisma generate && next build",
-    "start": "next start -p 8080",
+    "start": "next start -p 3000 -H 0.0.0.0",
     "lint": "next lint",
     "test": "vitest run",
     "db:generate": "prisma generate",
@@ -37,6 +37,7 @@
     "cmdk": "^0.2.0",
     "crypto-browserify": "3.12.0",
     "dotenv": "^18.0.10",
+    "i18next": "^27.2.7",
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.292.0",
@@ -58,6 +59,5 @@
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "vitest": "^1.6.1"
-  },
-  "packageManager": "pnpm@8.15.9"
+  }
 }
