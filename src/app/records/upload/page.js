@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import QRCode from "qrcode";
-import RecordQr from "../../../features/records-qr/RecordQr";
 import { getSupabaseBrowser } from "../../../lib/supabase/browser";
 
 const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
@@ -96,7 +95,8 @@ export default function UploadReportPage() {
       const shareResult = await shareResponse.json();
       if (!shareResponse.ok) {
         setSavedId(report.id);
-        setStatus("Report uploaded privately; share link could not be created. Use My Reports to generate one.");
+        setError(shareResult.error || "Report uploaded privately, but its share QR could not be created.");
+        setStatus("Report uploaded privately; share QR could not be created. Check integration setup and try again.");
         setBusy(false);
         return;
       }
@@ -114,7 +114,7 @@ export default function UploadReportPage() {
     const reports = JSON.parse(localStorage.getItem("healthx_demo_reports") || "[]");
     localStorage.setItem("healthx_demo_reports", JSON.stringify([demoReport, ...reports]));
     setSavedId(id);
-    setStatus("Supabase is not configured. Saved report metadata in this browser's demo storage; the file was not uploaded.");
+    setStatus("Supabase is not configured. Only report metadata was saved in this browser; the file was not uploaded and no shareable QR was generated.");
     setBusy(false);
   }
 
@@ -146,10 +146,11 @@ export default function UploadReportPage() {
               <p className="mt-3 text-xs text-slate-600">The QR contains no patient or report data.</p>
             </section>
           ) : savedId ? (
-            <div className="rounded border bg-white p-5">
-              <p className="mb-3 text-sm">Demo QR only; configure Supabase to generate a secure public share link.</p>
-              <RecordQr recordId={savedId} />
-            </div>
+            <section className="rounded border bg-amber-50 p-5 text-amber-950">
+              <h2 className="font-bold">Shareable QR unavailable</h2>
+              <p className="mt-2 text-sm">{status || "Configure Supabase and APP_BASE_URL to create a secure report share QR."}</p>
+              <a href="/admin/setup-status" className="mt-3 inline-block font-semibold underline">Check integration setup</a>
+            </section>
           ) : (
             <div className="rounded border border-dashed p-8 text-center text-slate-600">Upload a report to get a private-storage share QR.</div>
           )}

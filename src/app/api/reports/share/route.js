@@ -1,5 +1,6 @@
 import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
+import { getPublicAppBaseUrl } from "../../../../lib/public-app-url";
 
 const expiryOptions = {
   "24h": 24 * 60 * 60 * 1000,
@@ -19,6 +20,12 @@ export async function POST(request) {
   }
   const report = await context.prisma.report.findFirst({ where: { id: reportId, ownerId: context.user.id } });
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
+  const baseUrl = getPublicAppBaseUrl(request);
+  if (!baseUrl) {
+    return Response.json({
+      error: "Set APP_BASE_URL to a reachable HTTP(S) host (not localhost) before generating a share QR.",
+    }, { status: 503 });
+  }
 
   const pinSalt = pin ? randomBytes(16).toString("hex") : null;
   const pinHash = pin ? scryptSync(pin, pinSalt, 64).toString("hex") : null;
@@ -52,7 +59,7 @@ export async function POST(request) {
   return Response.json({
     token,
     shareId: share.id,
-    url: `${new URL(request.url).origin}/r/${token}`,
+    url: `${baseUrl}/r/${token}`,
     expiresAt: expiresAt?.toISOString() || null,
   }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -1,5 +1,6 @@
 import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { requireUser } from "../../../../lib/api-auth";
+import { getPublicAppBaseUrl } from "../../../../lib/public-app-url";
 
 const expiryOptions = {
   "24h": 24 * 60 * 60 * 1000,
@@ -45,6 +46,12 @@ export async function POST(request) {
   if (ownedReports.length !== cleanIds.length) {
     return Response.json({ error: "One or more selected reports were not found." }, { status: 404 });
   }
+  const baseUrl = getPublicAppBaseUrl(request);
+  if (!baseUrl) {
+    return Response.json({
+      error: "Set APP_BASE_URL to a reachable HTTP(S) host (not localhost) before generating a share QR.",
+    }, { status: 503 });
+  }
 
   const pinSalt = pin ? randomBytes(16).toString("hex") : null;
   const pinHash = pin ? scryptSync(pin, pinSalt, 64).toString("hex") : null;
@@ -68,7 +75,7 @@ export async function POST(request) {
     token,
     bundleId: bundle.id,
     reportCount: cleanIds.length,
-    url: `${new URL(request.url).origin}/r/bundle/${token}`,
+    url: `${baseUrl}/r/bundle/${token}`,
     expiresAt: expiresAt?.toISOString() || null,
   }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
