@@ -58,7 +58,7 @@ export async function POST(request) {
       startsAt,
       mode: body.mode,
       status: "booked",
-      roomName: `healthx-${randomUUID()}`,
+      roomName: `swasth-saathi-${randomUUID()}`,
       demo: doctor.demo,
     },
     include: { doctor: { select: { name: true, speciality: true } } },

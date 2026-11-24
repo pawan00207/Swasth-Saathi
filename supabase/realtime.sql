@@ -1,7 +1,9 @@
 drop policy if exists "HealthX authenticated realtime subscriptions" on realtime.messages;
 drop policy if exists "HealthX public bed inventory subscriptions" on realtime.messages;
+drop policy if exists "Swasth Saathi authenticated realtime subscriptions" on realtime.messages;
+drop policy if exists "Swasth Saathi public bed inventory subscriptions" on realtime.messages;
 
-create policy "HealthX public bed inventory subscriptions"
+create policy "Swasth Saathi public bed inventory subscriptions"
 on realtime.messages
 for select
 to anon, authenticated
@@ -9,7 +11,7 @@ using (
   realtime.topic() = 'bed-inventory-live'
 );
 
-create policy "HealthX authenticated realtime subscriptions"
+create policy "Swasth Saathi authenticated realtime subscriptions"
 on realtime.messages
 for select
 to authenticated

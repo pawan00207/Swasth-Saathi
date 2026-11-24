@@ -9,7 +9,7 @@ describe("shared PDF generator", () => {
   it("embeds the Devanagari font and saves a PDF", async () => {
     const font = await readFile(new URL("../public/fonts/NotoSansDevanagari-Regular.ttf", import.meta.url));
     vi.stubGlobal("fetch", vi.fn(async () => new Response(font)));
-    const fileName = join(tmpdir(), `healthx-${randomUUID()}.pdf`);
+    const fileName = join(tmpdir(), `swasth-saathi-${randomUUID()}.pdf`);
 
     try {
       await generatePdf({

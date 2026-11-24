@@ -6,7 +6,7 @@ export class DhrsUnavailableError extends Error {
 }
 
 /**
- * Request HealthX's same-origin DHRS proxy.
+ * Request Swasth Saathi's same-origin DHRS proxy.
  * @param {string} path
  * @param {{method?: string, body?: unknown, timeoutMs?: number, retries?: number}} [options]
  * @returns {Promise<any>}

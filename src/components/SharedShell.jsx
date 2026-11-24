@@ -63,7 +63,7 @@ export default function SharedShell({ children }) {
         <div className="bg-amber-300 px-4 py-2 text-center text-sm text-amber-950" role="status">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <span className="font-semibold">
-              AccessHealth features are available now. Live/data integrations use verified sources; demo fallbacks are clearly labeled.
+              Swasth Saathi features are available now. Live integrations use verified sources; demo fallbacks are clearly labeled.
             </span>
             <button
               type="button"

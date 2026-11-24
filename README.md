@@ -1,8 +1,16 @@
-# Swasth Saathi / HealthX
+# Swasth Saathi — Accessible Healthcare
+
+Swasth Saathi helps patients and caregivers discover support schemes, manage and share medical reports, find accessible care, book teleconsultations, and check hospital bed availability. It also provides tools for doctors and hospital staff to manage appointments, prescriptions, and invoices.
+
+> **Safety:** Demo project, not a substitute for medical advice. Confirm scheme eligibility with the official portal and bed availability directly with the hospital.
+
+## Project documentation
+
+- [Project overview](./doc/PROJECT_OVERVIEW.md): architecture, modules, routes, data flows, configuration, and operating limits.
+- [Product requirements (PRD)](./doc/PRD.md): users, product goals, functional and non-functional requirements, acceptance criteria, and roadmap.
+- [Environment template](./.env.example): variable names only; supply real values in the ignored `.env.local`.
 
 An accessibility-focused Next.js healthcare demo. Existing routes, Web5/DWN flows, and UI modules remain. Relational data now uses Prisma Postgres; Supabase is retained for Auth, private report-file Storage, and Realtime Broadcast notifications. Because Prisma uses a privileged database connection, every user-facing data API verifies the Supabase bearer token and enforces owner or hospital-role checks server-side. Bed, bed-request, and appointment updates use Realtime Broadcast with polling fallback whenever the required channel is disconnected.
-
-> Demo project, not a substitute for medical advice. Confirm scheme eligibility with the official portal and bed availability directly with the hospital.
 
 ## Audit and current state
 
