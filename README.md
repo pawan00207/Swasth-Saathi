@@ -27,7 +27,7 @@ Swasth Saathi helps patients and caregivers discover support schemes, manage Car
 Requirements: Node.js 20+ and `npm`.
 
 1. Copy `.env.example` to `.env.local` and supply credentials locally (never commit `.env.local` or secrets).
-2. Set `DATABASE_URL` (PostgreSQL / Prisma Postgres) and Supabase keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
+2. Set `DATABASE_URL` (PostgreSQL / Prisma Postgres) and Supabase keys (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`). The URL and publishable key are exposed to the browser as public settings; keep the secret key server-only. Legacy anon/service-role names are also supported.
 3. Set `APP_BASE_URL` to a host reachable from the device scanning report QR codes (your deployment domain, a tunnel URL, or a LAN IP). Do not use `localhost`; share QR creation is rejected on loopback hosts.
 4. Install, generate Prisma client, apply additive migrations, seed, and start:
 
@@ -41,7 +41,7 @@ npm run dev
 
 Open `http://localhost:3000/admin/setup-status` to check provider connectivity (no secret values are exposed).
 
-For private report uploads and share QR codes, create a Supabase project, set its project URL, anon/publishable key, and service-role secret in `.env.local`, configure `DATABASE_URL`, apply `supabase/storage.sql`, and run the Prisma migrations. Never put credentials in `.env.example` or commit `.env.local`. Without Supabase, the upload page stores demo metadata only in the current browser and deliberately does not generate a misleading localhost QR.
+For private report uploads and share QR codes, create a Supabase project, set its project URL, publishable key, and secret key in `.env.local`, configure `DATABASE_URL`, apply `supabase/storage.sql`, and run the Prisma migrations. The app maps the URL and publishable key to browser-safe `NEXT_PUBLIC_*` settings; `SUPABASE_SECRET_KEY` remains server-only. Never put secrets in `.env.example` or commit `.env.local`. Without Supabase, the upload page stores demo metadata only in the current browser and deliberately does not generate a misleading localhost QR.
 
 ## Provider Configuration Guides
 

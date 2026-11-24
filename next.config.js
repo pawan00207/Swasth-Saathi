@@ -1,10 +1,18 @@
 const webpack = require('webpack');
 
+const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const publicSupabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+const publicSupabaseEnv = {
+  ...(publicSupabaseUrl ? { NEXT_PUBLIC_SUPABASE_URL: publicSupabaseUrl } : {}),
+  ...(publicSupabaseKey ? { NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicSupabaseKey } : {}),
+};
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
+  env: publicSupabaseEnv,
 
   webpack: (config, { isServer, buildId, dev, webpack }) => {
     config.resolve.alias = {

@@ -4,21 +4,24 @@ import { getActiveWhatsAppProviderName, isWhatsAppConfigured } from "../../../li
 export const dynamic = "force-dynamic";
 
 const requestLimits = new Map();
+const supabaseUrl = () => process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabasePublicKey = () => process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseSecretKey = () => process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const checks = [
   {
     name: "Supabase Auth / Storage",
-    configured: () => Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    configured: () => Boolean(supabaseUrl() && supabasePublicKey() && supabaseSecretKey()),
     test: async () => {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const url = supabaseUrl();
       const authResponse = await fetch(`${url.replace(/\/$/, "")}/auth/v1/health`, {
-        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+        headers: { apikey: supabasePublicKey() },
         cache: "no-store",
       });
       if (!authResponse.ok) return false;
       const storageResponse = await fetch(`${url.replace(/\/$/, "")}/storage/v1/bucket/medical-reports`, {
         headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: supabaseSecretKey(),
+          Authorization: `Bearer ${supabaseSecretKey()}`,
         },
         cache: "no-store",
       });
