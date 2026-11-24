@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send } from "lucide-react";
+import { RefreshCw, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function SetupStatusPage() {
   const [integrations, setIntegrations] = useState([]);
@@ -55,86 +58,91 @@ export default function SetupStatusPage() {
     }
   }
 
+  const summary = integrations.reduce((counts, integration) => {
+    const state = integration.ok ? "live" : integration.configured ? "unavailable" : "demo";
+    counts[state] += 1;
+    return counts;
+  }, { live: 0, unavailable: 0, demo: 0 });
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="site-container py-8 sm:py-12">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-teal-900">Integration setup status</h1>
-          <p className="mt-2 text-slate-600">
-            Only configuration and connectivity status are shown. Secret values are never sent to this page.
-          </p>
+          <h1>Integration setup status</h1>
+          <p className="mt-2 text-slate-700">See which services have credentials and whether their checks passed. Secret values stay on the server.</p>
         </div>
-        <button
-          onClick={refresh}
-          disabled={loading}
-          className="min-h-[44px] rounded border border-teal-800 px-4 py-2 font-semibold text-teal-900 disabled:opacity-60"
-        >
-          {loading ? "Checking..." : "Check again"}
-        </button>
-      </div>
-      {error && <p role="alert" className="mt-4 rounded bg-red-50 p-3 text-red-900">{error}</p>}
-      {loading && integrations.length === 0 && <p role="status" className="mt-5">Testing integrations...</p>}
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        {integrations.map((integration) => (
-          <article key={integration.name} className="rounded-lg border bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="font-bold">{integration.name}</h2>
-              <span
-                className={`rounded px-2 py-1 text-xs font-bold ${
-                  integration.ok
-                    ? "bg-green-100 text-green-900"
-                    : integration.configured
-                      ? "bg-red-100 text-red-900"
-                      : "bg-amber-100 text-amber-950"
-                }`}
-              >
-                {integration.ok ? "LIVE · OK" : integration.configured ? "CONFIGURED · TEST FAILED" : "DEMO DATA"}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-slate-700">
-              Environment keys: {integration.configured ? "present" : "missing"}
-            </p>
-            <p className="mt-1 text-sm text-slate-700">
-              Live test: {integration.ok ? "succeeded" : integration.configured ? "failed or unavailable" : "not run"}
-            </p>
-          </article>
-        ))}
+        <Button type="button" variant="outline" onClick={refresh} disabled={loading} className="gap-2">
+          <RefreshCw size={16} strokeWidth={1.5} aria-hidden="true" />
+          {loading ? "Checking…" : "Check again"}
+        </Button>
       </div>
 
-      {/* WhatsApp Test Trigger */}
-      <section className="mt-8 rounded-xl border bg-white p-5">
-        <h2 className="text-lg font-bold text-slate-950">Send test WhatsApp</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Verify your configured WhatsApp provider (Twilio Sandbox or Meta Cloud API) by sending a test alert.
-        </p>
+      {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-900">{error}</p>}
+      <section className="mt-6" aria-labelledby="provider-checks-title" aria-busy={loading}>
+        <h2 id="provider-checks-title" className="sr-only">Provider checks</h2>
+        {loading && integrations.length === 0 && <p role="status" className="site-panel">Checking integrations…</p>}
+        {integrations.length > 0 && (
+          <>
+            <dl className="setup-summary">
+              {[
+                ["Live", summary.live],
+                ["Not configured", summary.demo],
+                ["Check failed", summary.unavailable],
+              ].map(([label, count]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{count}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="setup-table">
+              <table className="w-full text-left text-sm">
+                <thead><tr><th scope="col">Service</th><th scope="col">Keys</th><th scope="col">Live check</th></tr></thead>
+                <tbody>
+                  {integrations.map((integration) => {
+                    const state = integration.ok ? "live" : integration.configured ? "unavailable" : "demo";
+                    return (
+                      <tr key={integration.name}>
+                        <th scope="row">{integration.name}</th>
+                        <td>{integration.configured ? "Present" : "Missing"}</td>
+                        <td>
+                          <span className="provider-state" data-state={state}>
+                            {integration.ok ? "Passed" : integration.configured ? "Failed or unavailable" : "Not run"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="site-panel mt-8" aria-labelledby="whatsapp-test-title">
+        <h2 id="whatsapp-test-title" className="text-xl font-semibold">Send a WhatsApp test</h2>
+        <p className="mt-2 text-sm text-slate-700">Send a test alert through your configured Twilio Sandbox or Meta Cloud API provider.</p>
         <form onSubmit={sendTestWhatsapp} className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="text-sm font-semibold">
-            Recipient WhatsApp number (with country code)
-            <input
-              required
-              type="tel"
-              placeholder="+919876543210"
-              className="mt-1 block min-h-[44px] w-64 rounded border border-slate-400 px-3 py-2"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={testBusy}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded bg-teal-800 px-4 py-2 font-bold text-white disabled:opacity-60"
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-            <span>{testBusy ? "Sending..." : "Send test WhatsApp"}</span>
-          </button>
+          <div className="grid w-full gap-2 sm:max-w-xs">
+            <Label htmlFor="whatsapp-test-phone">Recipient number</Label>
+            <Input id="whatsapp-test-phone" required type="tel" placeholder="+91" autoComplete="tel"
+              aria-describedby="whatsapp-test-hint" value={testPhone}
+              onChange={(event) => setTestPhone(event.target.value)} />
+          </div>
+          <Button type="submit" disabled={testBusy} className="gap-2">
+            <Send size={16} strokeWidth={1.5} aria-hidden="true" />
+            {testBusy ? "Sending…" : "Send test message"}
+          </Button>
         </form>
-        {testStatus && <p role="status" className="mt-3 rounded bg-green-50 p-3 text-sm font-semibold text-green-950">{testStatus}</p>}
-        {testError && <p role="alert" className="mt-3 rounded bg-red-50 p-3 text-sm font-semibold text-red-950">{testError}</p>}
+        <p id="whatsapp-test-hint" className="mt-2 text-sm text-slate-600">Include the country code.</p>
+        {testStatus && <p role="status" className="mt-3 rounded-lg bg-green-50 p-3 text-sm text-green-950">{testStatus}</p>}
+        {testError && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-950">{testError}</p>}
       </section>
 
       {checkedAt && (
-        <p className="mt-4 text-sm text-slate-500">Last checked: {new Date(checkedAt).toLocaleString()}</p>
+        <p className="mt-4 text-sm text-slate-600">Last checked <time dateTime={checkedAt}>{new Date(checkedAt).toLocaleString()}</time></p>
       )}
-    </main>
+    </div>
   );
 }

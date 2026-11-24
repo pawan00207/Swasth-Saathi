@@ -34,7 +34,7 @@ export default function PublicSharedReport({ params }) {
   useEffect(() => { loadReport(); }, [loadReport]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="rounded border-2 border-amber-500 bg-amber-50 p-3 text-center font-bold text-amber-950">Private medical information — only open this link if the patient shared it with you.</div>
       <h1 className="mt-6 text-3xl font-bold text-teal-900">Shared medical report</h1>
       {loading && <p role="status" className="mt-4">Verifying secure share link...</p>}
@@ -52,6 +52,6 @@ export default function PublicSharedReport({ params }) {
         </section>
       )}
       <p className="mt-6 text-sm text-slate-600">Demo project, not a substitute for medical advice.</p>
-    </main>
+    </div>
   );
 }

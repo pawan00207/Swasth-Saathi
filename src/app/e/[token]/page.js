@@ -28,7 +28,7 @@ export default function PublicEmergencyCardPage({ params }) {
   }, [params.token]);
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
+    <div className="mx-auto max-w-xl px-4 py-10">
       <div className="rounded-lg border-2 border-red-700 bg-red-50 p-4 text-center">
         <p className="flex items-center justify-center gap-2 text-lg font-extrabold text-red-950">
           <HeartPulse className="h-5 w-5" aria-hidden="true" />
@@ -102,6 +102,6 @@ export default function PublicEmergencyCardPage({ params }) {
           </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }

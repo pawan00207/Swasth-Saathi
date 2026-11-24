@@ -41,7 +41,7 @@ export default function SaarthiChat() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="fixed bottom-5 right-5 z-40 rounded-full bg-teal-800 px-5 py-3 font-bold text-white shadow-lg focus:outline-none focus:ring-4 focus:ring-teal-300"
+        className="site-utility-action fixed bottom-5 right-5 z-40 min-h-11 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-teal-900 shadow-md hover:bg-teal-50"
         aria-expanded={open}
         aria-controls="saarthi-chat"
       >
@@ -51,9 +51,9 @@ export default function SaarthiChat() {
         <section
           id="saarthi-chat"
           aria-label="Saarthi AI chatbot"
-          className="fixed bottom-20 right-5 z-40 flex h-[420px] w-[min(380px,calc(100vw-40px))] flex-col rounded-lg border border-slate-300 bg-white shadow-xl"
+          className="fixed bottom-20 right-5 z-40 flex h-[min(420px,calc(100dvh-104px))] w-[min(380px,calc(100vw-40px))] flex-col rounded-xl border border-slate-300 bg-white shadow-lg"
         >
-          <div className="rounded-t-lg bg-teal-950 px-4 py-3 font-bold text-white">Saarthi AI</div>
+          <div className="rounded-t-xl border-b border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-teal-950">Saarthi AI</div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
             {messages.map((message, index) => (
               <p

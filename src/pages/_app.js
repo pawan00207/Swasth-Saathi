@@ -2,19 +2,23 @@ import "@/styles/globals.css";
 import { RecoilRoot } from "recoil";
 import dynamic from "next/dynamic";
 import { I18nProvider } from "@/components/I18nProvider";
-import SosFloatingWidget from "@/features/sos/SosFloatingWidget";
+import SharedShell from "@/components/SharedShell";
 
-const App = ({ Component, pageProps }) => {
+function AppFrame({ Component, pageProps, isHome = false }) {
   return (
     <I18nProvider>
       <RecoilRoot>
-        <Component {...pageProps} />
-        <SosFloatingWidget />
+        <SharedShell isHome={isHome}><Component {...pageProps} /></SharedShell>
       </RecoilRoot>
     </I18nProvider>
   );
-};
+}
 
-export default dynamic(() => Promise.resolve(App), {
-  ssr: false,
-});
+const ClientAppFrame = dynamic(() => Promise.resolve(AppFrame), { ssr: false });
+
+export default function App({ Component, pageProps, router }) {
+  if (router.pathname === "/") {
+    return <AppFrame Component={Component} pageProps={pageProps} isHome />;
+  }
+  return <ClientAppFrame Component={Component} pageProps={pageProps} />;
+}

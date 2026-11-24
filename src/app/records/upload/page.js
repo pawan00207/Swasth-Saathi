@@ -120,17 +120,17 @@ export default function UploadReportPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">Medical Report Upload</h1>
+      <h1 className="text-3xl font-bold text-teal-900">Upload a medical report</h1>
       <p className="mt-2 text-slate-600">Configured accounts upload to private storage. QR codes contain only a random, revocable share URL.</p>
       <div className="mt-6 grid gap-6 md:grid-cols-2">
-        <form onSubmit={submit} className="space-y-4 rounded-lg border bg-white p-5">
+        <form onSubmit={submit} className="site-panel space-y-4">
           <label className="block">Patient name<input required autoComplete="name" className="mt-1 w-full rounded border px-3 py-2" value={record.patientName} onChange={(event) => update("patientName", event.target.value)} /></label>
           <label className="block">Patient ID (demo fallback)<input className="mt-1 w-full rounded border px-3 py-2" value={record.patientId} onChange={(event) => update("patientId", event.target.value)} /></label>
           <label className="block">Report type<select className="mt-1 w-full rounded border px-3 py-2" value={record.reportType} onChange={(event) => update("reportType", event.target.value)}><option>Pathology</option><option>Radiology</option><option>Cardiology</option><option>Neurology</option><option>Prescription</option></select></label>
           <label className="block">Report date<input required type="date" className="mt-1 w-full rounded border px-3 py-2" value={record.reportDate} onChange={(event) => update("reportDate", event.target.value)} /></label>
           <label className="block">Doctor name<input className="mt-1 w-full rounded border px-3 py-2" value={record.doctor} onChange={(event) => update("doctor", event.target.value)} /></label>
           <label className="block">Notes<textarea className="mt-1 w-full rounded border px-3 py-2" value={record.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-          <label className="block">Report PDF or image<input required ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png,image/webp" className="mt-1 w-full" /></label>
+          <label className="block">Report PDF or image<input required ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png,image/webp" className="mt-2 block w-full text-sm file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:font-medium file:text-teal-950" /></label>
           <label className="block">Share link expiry<select className="mt-1 w-full rounded border px-3 py-2" value={expiry} onChange={(event) => setExpiry(event.target.value)}><option value="24h">24 hours</option><option value="7d">7 days</option><option value="never">Never (revocable)</option></select></label>
           <label className="block">Optional share PIN (4-6 digits)<input type="password" inputMode="numeric" pattern="[0-9]{4,6}" minLength={4} maxLength={6} autoComplete="new-password" className="mt-1 w-full rounded border px-3 py-2" value={sharePin} onChange={(event) => setSharePin(event.target.value)} /></label>
           <button disabled={busy} className="rounded bg-teal-800 px-4 py-2 font-semibold text-white disabled:opacity-60">{busy ? "Uploading..." : "Upload private report"}</button>
@@ -151,7 +151,7 @@ export default function UploadReportPage() {
               <RecordQr recordId={savedId} />
             </div>
           ) : (
-            <div className="rounded border border-dashed p-8 text-center text-slate-600">Upload a report to get a private-storage share QR.</div>
+            <div className="site-panel border-dashed text-slate-700">The report share QR appears here after an upload.</div>
           )}
           {savedId && (
             <p className="mt-3 text-sm">

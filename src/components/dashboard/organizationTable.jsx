@@ -157,7 +157,7 @@ export function OrganizationTable() {
       accessorKey: "healthRecordName",
       header: "Health Record Name",
       cell: ({ row }) => (
-        <div className="capitalize text-lg font-semibold text-cyan-900">
+        <div className="capitalize font-semibold text-slate-900">
           {row.getValue("healthRecordName")}
         </div>
       ),
@@ -166,7 +166,7 @@ export function OrganizationTable() {
       accessorKey: "healthRecordCategory",
       header: "Category",
       cell: ({ row }) => (
-        <div className="capitalize inline-block font-semibold bg-cyan-700 text-cyan-50 rounded-lg p-1">
+        <div className="capitalize inline-block font-semibold bg-slate-100 text-slate-800 rounded-md px-2 py-1">
           {" "}
           {row.getValue("healthRecordCategory")}
         </div>
@@ -194,7 +194,7 @@ export function OrganizationTable() {
         return (
           <Dialog>
             <DialogTrigger>
-              <Button className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500">
+              <Button className="bg-teal-800 text-white hover:bg-teal-900">
                 View
               </Button>
             </DialogTrigger>
@@ -219,13 +219,13 @@ export function OrganizationTable() {
                           if (!error?.cancelled) console.error(error);
                         });
                       }}
-                      className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500 mt-4"
+                      className="bg-teal-800 text-white hover:bg-teal-900 mt-4"
                     >
                       Open Record
                     </Button>
                     <Link
                       href={`/records/view/${encodeURIComponent(row.getValue("healthRecordName"))}`}
-                      className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-cyan-700 px-4 text-sm font-medium text-white"
+                      className="ml-2 mt-4 inline-flex h-10 items-center rounded-md bg-teal-800 px-4 text-sm font-medium text-white"
                     >
                       Generate QR
                     </Link>
@@ -264,29 +264,29 @@ export function OrganizationTable() {
   const isFiltered = table.getState().columnFilters.length > 0;
 
   return (
-    <div className="p-8 ">
-      <div className="flex justify-between">
-        <div className="text-cyan-900 font-bold text-2xl p-4 bg-cyan-50 rounded-lg">
-          Issued Records
-        </div>
+    <section className="mt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">
+          Issued records
+        </h2>
         <div>
           {/* Modal */}
           <IssueHealthRecord />
         </div>
       </div>
 
-      <div className="flex items-center py-4">
-        <div className="flex flex-1 items-center space-x-2">
+      <div className="flex flex-wrap items-center gap-2 py-4">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
           {" "}
           <Input
-            placeholder="Search a record..."
+            placeholder="Search records" aria-label="Search records"
             value={table.getColumn("healthRecordName")?.getFilterValue() || ""}
             onChange={(event) =>
               table
                 .getColumn("healthRecordName")
                 ?.setFilterValue(event.target.value)
             }
-            className="max-w-sm bg-cyan-50"
+            className="max-w-sm"
           />
           {/* categoryFilter UI */}
           {table.getColumn("healthRecordCategory") && (
@@ -335,7 +335,7 @@ export function OrganizationTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-md border bg-cyan-50">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -378,13 +378,13 @@ export function OrganizationTable() {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No issued records match this view.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-    </div>
+    </section>
   );
 }

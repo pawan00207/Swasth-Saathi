@@ -456,7 +456,7 @@ export default function BillingPage() {
         </div>
         {usingDemoAnalytics && (
           <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-950">
-            DEMO SUMMARY · Connect Supabase/Prisma for live account analytics
+            Showing sample spending and bills
           </span>
         )}
       </div>
@@ -469,32 +469,32 @@ export default function BillingPage() {
       )}
 
       {/* Summary Cards */}
-      <section aria-label="Care Wallet Summary" className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <article className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.totalSpentYear")}</p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-950">{formatCurrency(summary.totalYear)}</p>
-          {usingDemoAnalytics && <span className="mt-1 inline-block text-xs font-bold text-amber-800">DEMO</span>}
+      <section aria-label="Care Wallet Summary" className="wallet-summary mt-6">
+        <article className="wallet-summary-cell">
+          <p className="text-sm font-medium text-slate-700">{t("wallet.totalSpentYear")}</p>
+          <p className="wallet-number mt-2">{formatCurrency(summary.totalYear)}</p>
+          {usingDemoAnalytics && <span className="mt-1 inline-block text-xs font-medium text-amber-800">Demo</span>}
         </article>
-        <article className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.paidVsDue")}</p>
-          <p className="mt-2 text-lg font-extrabold text-green-800">Paid: {formatCurrency(summary.totalPaid)}</p>
+        <article className="wallet-summary-cell">
+          <p className="text-sm font-medium text-slate-700">{t("wallet.paidVsDue")}</p>
+          <p className="mt-2 text-lg font-bold tabular-nums text-green-800">Paid: {formatCurrency(summary.totalPaid)}</p>
           <p className="text-sm font-bold text-amber-900">Due: {formatCurrency(summary.totalDue)}</p>
         </article>
-        <article className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.hospitalsVisited")}</p>
-          <p className="mt-2 flex items-center gap-2 text-2xl font-extrabold text-slate-950">
+        <article className="wallet-summary-cell">
+          <p className="text-sm font-medium text-slate-700">{t("wallet.hospitalsVisited")}</p>
+          <p className="wallet-number mt-2 flex items-center gap-2">
             <Building2 className="h-5 w-5 text-teal-800" aria-hidden="true" />
             <span>{summary.hospitalsVisited}</span>
           </p>
         </article>
-        <article className="rounded-xl border bg-white p-4 shadow-sm">
+        <article className="wallet-summary-cell">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold uppercase text-slate-600">{t("wallet.estimatedSavings")}</p>
+            <p className="text-sm font-medium text-slate-700">{t("wallet.estimatedSavings")}</p>
             <span className="rounded bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-950">
               {t("wallet.schemeEstimateBadge")}
             </span>
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-teal-900">{formatCurrency(estimatedSchemeSavings)}</p>
+          <p className="wallet-number mt-2">{formatCurrency(estimatedSchemeSavings)}</p>
         </article>
       </section>
 
@@ -550,7 +550,7 @@ export default function BillingPage() {
                 <div className="flex items-center justify-between gap-2">
                   <strong className="text-sm">{bill.id}</strong>
                   <span
-                    className={`rounded px-2 py-0.5 text-[11px] font-bold uppercase ${
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${
                       st === "paid"
                         ? "bg-green-100 text-green-900"
                         : st === "failed"
@@ -583,7 +583,7 @@ export default function BillingPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`rounded px-2.5 py-1 text-xs font-bold uppercase ${
+                className={`rounded px-2.5 py-1 text-xs font-medium ${
                   isPaid
                     ? "bg-green-100 text-green-900"
                     : statusKey === "failed"

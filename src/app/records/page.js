@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { QrCode } from "lucide-react";
+import { Lock, QrCode } from "lucide-react";
 import { getSupabaseBrowser } from "../../lib/supabase/browser";
 import { generatePdf } from "../../lib/generatePdf";
 import { useI18n } from "../../components/I18nProvider";
@@ -244,16 +244,23 @@ export default function MyReportsPage() {
   }
 
   const privateReports = reports.filter((r) => !(r.demo || r.mock));
+  const needsSignIn = !user && Boolean(getSupabaseBrowser());
 
   if (loading) return <div className="mx-auto max-w-5xl px-4 py-10" role="status">Loading your reports...</div>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-3xl font-bold text-teal-900">My Reports</h1>
-      {!user && getSupabaseBrowser() && (
-        <p className="mt-3 rounded bg-amber-50 p-3">
-          Sign in to see private reports. <a className="font-bold underline" href="/auth">Sign in</a>
-        </p>
+      <p className="mt-2 text-slate-700">View medical reports and manage the QR links you share.</p>
+      {needsSignIn && (
+        <section className="feature-gate mt-6" aria-labelledby="report-sign-in">
+          <Lock size={22} strokeWidth={1.6} aria-hidden="true" />
+          <div>
+            <h2 id="report-sign-in" className="font-bold">Your private reports</h2>
+            <p className="mt-1 text-sm">Sign in to see private reports.</p>
+          </div>
+          <a className="site-button site-button-primary" href="/auth">Sign in</a>
+        </section>
       )}
       {message && <p role="status" className="mt-3 rounded bg-green-50 p-3 text-green-900">{message}</p>}
       {error && <p role="alert" className="mt-3 rounded bg-red-50 p-3 text-red-900">{error}</p>}
@@ -440,7 +447,7 @@ export default function MyReportsPage() {
             </article>
           );
         })}
-        {reports.length === 0 && (
+        {reports.length === 0 && !needsSignIn && (
           <p className="rounded border border-dashed p-8 text-center text-slate-600">No reports yet. Upload one to get started.</p>
         )}
       </div>

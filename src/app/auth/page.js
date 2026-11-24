@@ -17,7 +17,7 @@ export default function AuthPage() {
     event.preventDefault();
     const supabase = getSupabaseBrowser();
     if (!supabase) {
-      setMessage("Supabase is not configured. Add the project URL and anon key to .env.local.");
+      setMessage("Sign-in is unavailable in this demo. You can still browse the care services.");
       return;
     }
     setBusy(true);
@@ -38,19 +38,39 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-3xl font-bold text-teal-900">{signUp ? "Create your account" : "Sign in"}</h1>
-      <p className="mt-2 text-sm text-slate-700">Your reports and saved schemes are private to your account.</p>
-      <form onSubmit={submit} className="mt-6 space-y-4 rounded-lg border bg-white p-5">
-        {signUp && <label className="block">Name<input required autoComplete="name" className="mt-1 w-full rounded border px-3 py-2" value={name} onChange={(event) => setName(event.target.value)} /></label>}
-        <label className="block">Email<input required type="email" autoComplete="email" className="mt-1 w-full rounded border px-3 py-2" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-        <label className="block">Password<input required type="password" minLength={8} autoComplete={signUp ? "new-password" : "current-password"} className="mt-1 w-full rounded border px-3 py-2" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-        <button disabled={busy} className="w-full rounded bg-teal-800 px-4 py-2 font-semibold text-white disabled:opacity-60">{busy ? "Please wait..." : signUp ? "Create account" : "Sign in"}</button>
-      </form>
-      <button type="button" onClick={() => { setSignUp((value) => !value); setMessage(""); }} className="mt-4 rounded border border-teal-800 px-4 py-2 text-teal-900">
-        {signUp ? "Have an account? Sign in" : "New here? Create account"}
-      </button>
-      {message && <p role="status" className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-950">{message}</p>}
+    <div className="site-container account-page">
+      <div className="account-intro">
+        <h1>{signUp ? "Create your account" : "Sign in"}</h1>
+        <p className="mt-3 text-slate-700">Your reports and saved schemes are private to your account.</p>
+      </div>
+      <div className="site-panel">
+        <form onSubmit={submit} className="space-y-4">
+          {signUp && (
+            <label className="block text-sm font-semibold">
+              Name
+              <input required autoComplete="name" name="name" className="site-field mt-2"
+                value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+          )}
+          <label className="block text-sm font-semibold">
+            Email
+            <input required type="email" autoComplete="username" name="email" className="site-field mt-2"
+              value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <label className="block text-sm font-semibold">
+            Password
+            <input required type="password" minLength={8} autoComplete={signUp ? "new-password" : "current-password"}
+              name="password" className="site-field mt-2" value={password} onChange={(event) => setPassword(event.target.value)} />
+          </label>
+          <button type="submit" disabled={busy} aria-busy={busy} className="site-button site-button-primary w-full">
+            {busy ? "Please wait…" : signUp ? "Create account" : "Sign in"}
+          </button>
+        </form>
+        {message && <p role="status" className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-950">{message}</p>}
+        <button type="button" onClick={() => { setSignUp((value) => !value); setMessage(""); }} className="site-text-button mt-3">
+          {signUp ? "Have an account? Sign in" : "New here? Create account"}
+        </button>
+      </div>
     </div>
   );
 }

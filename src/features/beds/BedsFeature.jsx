@@ -409,7 +409,7 @@ export default function BedsFeature() {
             type="button"
             aria-pressed={filters[key]}
             onClick={() => toggle(key)}
-            className={`min-h-[40px] rounded-full border px-3 py-1 text-sm font-semibold ${
+            className={`min-h-11 rounded-lg border px-3 py-1 text-sm font-semibold ${
               filters[key] ? "bg-teal-800 text-white" : "bg-white text-slate-900"
             }`}
           >
@@ -434,7 +434,7 @@ export default function BedsFeature() {
                 <div className="flex items-center justify-between gap-2">
                   <strong className="text-xs text-slate-700">#{req.id.slice(0, 10)}</strong>
                   <span
-                    className={`rounded px-2 py-0.5 text-xs font-extrabold uppercase ${
+                    className={`rounded px-2 py-0.5 text-xs font-semibold capitalize ${
                       req.status === "accepted"
                         ? "bg-green-100 text-green-950"
                         : req.status === "rejected"
@@ -462,7 +462,7 @@ export default function BedsFeature() {
         {results.map((h) => {
           const freshness = getHospitalFreshness(h, t);
           return (
-            <article key={h.id} className="rounded-xl border bg-white p-5 shadow-sm">
+            <article key={h.id} className="site-panel">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <h2 className="text-lg font-bold text-slate-950">{h.name}</h2>
                 <span className={`rounded px-2.5 py-1 text-xs font-extrabold ${freshness.badgeClass}`}>

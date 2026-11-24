@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Languages, Menu } from "lucide-react";
 import SaarthiChat from "../features/chat/SaarthiChat";
 import SosFloatingWidget from "../features/sos/SosFloatingWidget";
 import AccessibleModal from "./AccessibleModal";
@@ -21,8 +23,11 @@ const navItems = [
   ["nav.blockchain", "/blockchain"],
 ];
 
-export default function SharedShell({ children }) {
+const primaryPaths = new Set(["/schemes", "/records", "/billing", "/beds"]);
+
+export default function SharedShell({ children, isHome = false }) {
   const { language, setLanguage, t, languages } = useI18n();
+  const [sounds, setSounds] = useState(false);
   const [role, setRole] = useState("Patient");
   const [showStatus, setShowStatus] = useState(false);
   const [bedStatus, setBedStatus] = useState("Checking");
@@ -32,13 +37,49 @@ export default function SharedShell({ children }) {
   const [correctionSaved, setCorrectionSaved] = useState(false);
 
   useEffect(() => {
+    setSounds(localStorage.getItem("care-interface-sounds") === "on");
     const saved = localStorage.getItem("healthx_demo_role");
     if (saved) setRole(saved);
+  }, []);
+
+  useEffect(() => {
+    if (!showStatus) return;
     fetch("/api/hospitals", { cache: "no-store" })
       .then((response) => response.json())
       .then((data) => setBedStatus(data.source === "live-hms" ? "Live HMS" : "Demo fallback"))
       .catch(() => setBedStatus("Demo fallback"));
-  }, []);
+  }, [showStatus]);
+
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRoot = useRef(null);
+  const menuButton = useRef(null);
+
+  useEffect(() => setMenuOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function closeOnEscape(event) {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButton.current?.focus();
+    }
+    function closeOnOutsideClick(event) {
+      if (!menuRoot.current?.contains(event.target)) setMenuOpen(false);
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+    };
+  }, [menuOpen]);
+
+  function playConfirmation() {
+    const audio = new Audio("/sounds/soft-success.mp3");
+    audio.volume = 0.25;
+    audio.play().catch(() => {});
+  }
 
   function changeRole(event) {
     const next = event.target.value;
@@ -64,100 +105,117 @@ export default function SharedShell({ children }) {
         ]),
       );
     } catch {
-      // Ignore storage errors
+      return;
     }
     setCorrectionNote("");
     setCorrectionSaved(true);
+    if (sounds) playConfirmation();
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-teal-900 bg-teal-950 text-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="text-xl font-bold focus:outline-none focus:ring-2 focus:ring-white">
-            {t("appName")}
+    <div className="site-shell">
+      <a href="#main-content" className="site-skip">Skip to content</a>
+      <header className="site-header">
+        <div className="site-container site-header-row">
+          <Link href="/" className="site-brand">
+            <img src="/images/swasth-saathi-logo.webp" className="site-brand-logo" width="640" height="171" alt={t("appName")} />
           </Link>
-          <nav aria-label="Main navigation" className="flex flex-wrap gap-2">
-            {navItems.map(([key, href]) => (
-              <Link key={href} href={href} className="rounded px-2 py-1 text-sm hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-white">
-                {t(key)}
-              </Link>
+          <nav className="site-primary-nav" aria-label="Primary navigation">
+            {navItems.filter(([, href]) => primaryPaths.has(href)).map(([key, href]) => (
+              <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{t(key)}</Link>
             ))}
           </nav>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <span>{t("shell.language")}</span>
-              <select
-                aria-label={t("shell.language")}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="min-h-[36px] rounded border border-white bg-teal-950 px-2 py-1 text-white"
-              >
-                {languages.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.nativeLabel} ({item.code.toUpperCase()})
-                  </option>
-                ))}
+          <div className="site-header-controls">
+            <label className="site-language">
+              <Languages size={16} strokeWidth={1.5} aria-hidden="true" />
+              <select aria-label={t("shell.language")} value={language} onChange={(event) => setLanguage(event.target.value)}>
+                {languages.map((item) => <option key={item.code} value={item.code}>{item.nativeLabel}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <span>{t("shell.demoRole")}</span>
-              <select value={role} onChange={changeRole} className="min-h-[36px] rounded border border-white bg-teal-950 px-2 py-1 text-white">
-                <option>Patient</option>
-                <option>Doctor</option>
-                <option>Hospital Admin</option>
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="bg-amber-300 px-4 py-2 text-center text-sm text-amber-950" role="status">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <span className="font-semibold">
-              {t("shell.banner")}
-            </span>
-            <button
-              type="button"
-              aria-expanded={showStatus}
-              aria-controls="integration-status"
-              onClick={() => setShowStatus((visible) => !visible)}
-              className="shrink-0 rounded border border-amber-950 px-2 py-1 font-bold hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-950"
-            >
-              {showStatus ? t("shell.hideStatus") : t("shell.viewStatus")}
-            </button>
-          </div>
-          {showStatus && (
-            <div id="integration-status" className="mx-auto mt-2 grid max-w-7xl gap-2 rounded border border-amber-700 bg-amber-100 p-3 text-left sm:grid-cols-2 lg:grid-cols-5">
-              <span><strong>Schemes:</strong> Live demo catalogue</span>
-              <span><strong>Routing:</strong> Live demo route</span>
-              <span><strong>Beds:</strong> {bedStatus}</span>
-              <span><strong>Reports:</strong> Live demo OCR/DWN</span>
-              <span><strong>Doctors:</strong> Live demo directory</span>
+            <Link href="/auth" className="site-account" aria-current={pathname === "/auth" ? "page" : undefined}>
+              {t("nav.account")}
+            </Link>
+            <div ref={menuRoot}>
+              <button ref={menuButton} type="button" className="site-menu-trigger"
+                aria-expanded={menuOpen} aria-controls="site-service-menu"
+                onClick={() => setMenuOpen((open) => !open)}>
+                <Menu size={18} strokeWidth={1.5} aria-hidden="true" />
+                <span>Menu</span>
+              </button>
+              <div className="site-menu-panel" id="site-service-menu" hidden={!menuOpen}>
+                <nav aria-label="All services" className="site-menu-links">
+                  {navItems.map(([key, href]) => (
+                    <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}
+                      onClick={() => setMenuOpen(false)}>
+                      {t(key)}
+                    </Link>
+                  ))}
+                  <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}
+                    onClick={() => setMenuOpen(false)}>Record dashboard</Link>
+                </nav>
+                <label className="site-demo-role">
+                  <span>Interface sounds</span>
+                  <input type="checkbox" checked={sounds} onChange={(event) => {
+                    const enabled = event.target.checked;
+                    setSounds(enabled);
+                    localStorage.setItem("care-interface-sounds", enabled ? "on" : "off");
+                    if (enabled) playConfirmation();
+                  }} />
+                </label>
+                <label className="site-demo-role">
+                  <span>{t("shell.demoRole")}</span>
+                  <select value={role} onChange={changeRole}>
+                    <option>Patient</option>
+                    <option>Doctor</option>
+                    <option>Hospital Admin</option>
+                  </select>
+                </label>
+              </div>
             </div>
-          )}
+          </div>
         </div>
         {language !== "en" && (
-          <div className="border-t border-teal-800 bg-teal-900 px-4 py-1.5 text-center text-xs text-teal-50">
-            <span>{t("shell.machineTranslated")} </span>
-            <button
-              type="button"
-              onClick={() => {
+          <div className="site-translation">
+            <div className="site-container">
+              <span>{t("shell.machineTranslated")} </span>
+              <button type="button" className="site-text-button" onClick={() => {
                 setCorrectionSaved(false);
-                setCorrectionPage(typeof window !== "undefined" ? window.location.pathname : "/");
+                setCorrectionPage(window.location.pathname);
                 setCorrectionOpen(true);
-              }}
-              className="ml-1 font-bold underline hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-white"
-            >
-              {t("shell.suggestCorrection")}
-            </button>
+              }}>{t("shell.suggestCorrection")}</button>
+            </div>
           </div>
         )}
       </header>
-      <main className="pb-20">{children}</main>
-      <footer className="border-t bg-white px-4 py-4 text-center text-sm text-slate-700">
-        {t("shell.footerDisclaimer")}
+      <main id="main-content" className="site-main" data-surface={isHome ? "home" : "app"} tabIndex={-1}>
+        {children}
+      </main>
+      <footer className="site-footer">
+        <div className="site-container wrap site-footer-row">
+          <div>
+            <span className="site-footer-title">{t("appName")}</span>
+            <p>{t("shell.footerDisclaimer")}</p>
+          </div>
+          <button type="button" className="site-text-button" aria-expanded={showStatus}
+            aria-controls="integration-status" onClick={() => setShowStatus((visible) => !visible)}>
+            {showStatus ? t("shell.hideStatus") : t("shell.viewStatus")}
+          </button>
+        </div>
+        <div id="integration-status" className="site-container site-footer-status" hidden={!showStatus}>
+          <dl>
+            <div><dt>Schemes</dt><dd>Demo catalogue available</dd></div>
+            <div><dt>Routing</dt><dd>Demo routing available</dd></div>
+            <div><dt>Beds</dt><dd>{bedStatus}</dd></div>
+            <div><dt>Reports</dt><dd>Demo OCR and record sharing</dd></div>
+            <div><dt>Doctors</dt><dd>Demo directory available</dd></div>
+          </dl>
+          <Link className="site-text-button" href="/admin/setup-status">Integration setup status</Link>
+        </div>
       </footer>
-      <SosFloatingWidget />
-      <SaarthiChat />
+      <div className="site-utility-dock">
+        <SosFloatingWidget />
+        <SaarthiChat />
+      </div>
 
       <AccessibleModal
         open={correctionOpen}

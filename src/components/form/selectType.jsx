@@ -1,43 +1,20 @@
-import React from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Building2, User } from "lucide-react";
 
-export default function SelectType({ setType, setStep }) {
-  const [value, setValue] = React.useState("");
-  // console.log(value);
+const roles = [
+  ["individual", User, "Individual", "View and manage health records"],
+  ["organization", Building2, "Organization", "Issue health records to patients"],
+];
 
+export default function SelectType({ onSelect }) {
   return (
-    <div className="flex flex-col mt-48 justify-center items-center animate-in slide-in-from-bottom fade-in duration-700 ">
-      <h1 className="text-5xl mb-8 font-semibold text-emerald-500">
-        Are you an individual or Organization?
-      </h1>
-      <ToggleGroup
-        value={value}
-        onValueChange={(value) => {
-          if (value) {
-            setValue(value);
-            setType(value);
-            setStep(1);
-          }
-        }}
-        size={"lg"}
-        variant="outline"
-        type="single"
-      >
-        <ToggleGroupItem
-          value="individual"
-          aria-label="Toggle user"
-          className="text-lg text-emerald-600 hover:text-white"
-        >
-          <h2>Individual</h2>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="organization"
-          aria-label="Toggle Organization"
-          className="text-lg text-emerald-600 hover:text-white"
-        >
-          <h2>Organization</h2>
-        </ToggleGroupItem>
-      </ToggleGroup>
+    <div className="grid gap-2">
+      <h3 className="text-base font-semibold">Choose your role</h3>
+      {roles.map(([value, Icon, label, description]) => (
+        <button key={value} type="button" className="record-role" onClick={() => onSelect(value)}>
+          <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span><strong>{label}</strong><small>{description}</small></span>
+        </button>
+      ))}
     </div>
   );
 }

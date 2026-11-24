@@ -164,10 +164,10 @@ export function IssueHealthRecord() {
       <DialogTrigger>
         <Button
           onClick={handleClick}
-          className="bg-cyan-900 text-cyan-50 hover:bg-cyan-500"
+          className="bg-teal-800 text-white hover:bg-teal-900"
         >
           <PlusCircledIcon className="mt-0.5" />
-          <span className="w-2"> </span>Issue Record
+          <span className="w-2"> </span>Issue record
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -180,11 +180,11 @@ export function IssueHealthRecord() {
           <>
             {!sendRecordSuccess ? (
               <DialogHeader>
-                <DialogTitle className="text-cyan-900">
-                  Issue a Health Record.
+                <DialogTitle className="text-slate-900">
+                  Issue a health record
                 </DialogTitle>
                 <DialogDescription>
-                  <Card className="p-2 border-cyan-800 bg-cyan-50 ">
+                  <Card className="p-2 border-slate-200 bg-white ">
                     <CardHeader>
                       {/* <CardTitle className="text-cyan-600">
                         Create project
@@ -303,7 +303,7 @@ export function IssueHealthRecord() {
                           </div>
                         </div>
                         <div className="flex justify-center">
-                          <Button className="bg-cyan-600 hover:bg-cyan-400 mt-2 ">
+                          <Button className="mt-2">
                             Issue
                           </Button>
                         </div>

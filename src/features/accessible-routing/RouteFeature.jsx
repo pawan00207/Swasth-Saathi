@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import hospitals from "./hospitals.json";
 
-const Map = dynamic(() => import("./RouteMap"), { ssr: false, loading: () => <div className="h-96 animate-pulse rounded bg-slate-200" role="status">Loading map...</div> });
+const Map = dynamic(() => import("./RouteMap"), { ssr: false, loading: () => <div className="grid h-96 place-items-center rounded-xl bg-slate-100 text-slate-700" role="status">Loading map...</div> });
 
 export default function RouteFeature() {
   const [origin, setOrigin] = useState("India Gate, New Delhi");
@@ -123,13 +123,13 @@ export default function RouteFeature() {
     (!nearbyFilters.speciality || hospital.speciality?.toLowerCase().includes(nearbyFilters.speciality.toLowerCase())));
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
-      <h1 className="text-3xl font-bold text-teal-900">Accessible Hospital Routing</h1>
+      <h1 className="text-3xl font-bold text-teal-900">Accessible hospital routing</h1>
       <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p>
       <form onSubmit={(event) => { event.preventDefault(); plan(positionRef.current); }} className="mt-5 grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-2">
         <label>Origin<input className="mt-1 w-full rounded border px-3 py-2" value={origin} onChange={(event) => setOrigin(event.target.value)} required /></label>
         <label>Destination<select className="mt-1 w-full rounded border px-3 py-2" value={destination} onChange={(event) => { setDestination(event.target.value); setDestinationCoordinates(null); }}>{hospitals.map((hospital) => <option key={hospital.id}>{hospital.name}</option>)}</select></label>
         <label className="block">Route mode<select className="mt-1 w-full rounded border px-3 py-2" value={mode} onChange={(event) => setMode(event.target.value)}><option value="accessibility">Wheelchair accessibility</option><option value="ambulance">Ambulance / traffic-aware</option></select></label>
-        <fieldset className="md:col-span-2"><legend className="font-semibold">Accessibility preferences</legend><div className="mt-2 flex flex-wrap gap-2">{["Avoid steps", "Avoid stairs", "Prefer smooth roads", "Avoid high-traffic roads"].map((item) => <button type="button" aria-pressed={needs.includes(item)} key={item} onClick={() => setNeeds((items) => items.includes(item) ? items.filter((value) => value !== item) : [...items, item])} className={`rounded-full border px-3 py-2 ${needs.includes(item) ? "bg-teal-800 text-white" : "bg-white"}`}>{item}</button>)}</div></fieldset>
+        <fieldset className="md:col-span-2"><legend className="font-semibold">Accessibility preferences</legend><div className="mt-2 flex flex-wrap gap-2">{["Avoid steps", "Avoid stairs", "Prefer smooth roads", "Avoid high-traffic roads"].map((item) => <button type="button" aria-pressed={needs.includes(item)} key={item} onClick={() => setNeeds((items) => items.includes(item) ? items.filter((value) => value !== item) : [...items, item])} className={`min-h-11 rounded-lg border border-slate-400 px-3 py-2 ${needs.includes(item) ? "bg-teal-800 text-white" : "bg-white"}`}>{item}</button>)}</div></fieldset>
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">{mode === "ambulance" ? <><button type="button" onClick={() => setLocationEnabled((enabled) => !enabled)} className="rounded border border-teal-800 px-3 py-2">{locationEnabled ? "Stop location sharing" : "Use live location (30s refresh)"}</button><span className="text-sm">{locationEnabled ? "Location updates on" : "Location is off"}</span></> : <button type="button" onClick={useCurrentLocation} className="rounded border border-teal-800 px-3 py-2">Use current location once</button>}</div>
         <button disabled={loading} className="w-fit rounded bg-teal-800 px-4 py-2 text-white disabled:opacity-60">{loading ? "Finding route..." : "Plan route"}</button>
       </form>
@@ -143,7 +143,7 @@ export default function RouteFeature() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div>{displayRoute && <Map route={displayRoute} />}</div>
         {route && <aside className="rounded-lg border bg-white p-5">
-          <span className={`rounded px-2 py-1 text-xs font-bold ${route.mock ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-900"}`}>{route.mock ? "DEMO ROUTE" : route.source}</span>
+          <span className={`rounded px-2 py-1 text-xs font-bold ${route.mock ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-900"}`}>{route.mock ? "Demo route" : route.source}</span>
           <p className="mt-3"><strong>{displayRoute.distance}</strong> km · <strong>{displayRoute.duration}</strong> min</p>
           {lastUpdated && <p className="text-xs text-slate-600">Updated {new Date(lastUpdated).toLocaleTimeString()}</p>}
           {route.alternatives?.length > 1 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Route alternatives">{route.alternatives.map((alternative, index) => <button key={`${alternative.distance}-${index}`} aria-pressed={selectedAlternative === index} onClick={() => setSelectedAlternative(index)} className={`rounded border px-3 py-2 text-sm ${selectedAlternative === index ? "bg-teal-800 text-white" : ""}`}>Route {index + 1} · {alternative.duration} min</button>)}</div>}
@@ -151,7 +151,7 @@ export default function RouteFeature() {
           <h2 className="mt-4 font-bold">Warnings</h2><ul className="mt-2 list-disc pl-5 text-sm">{route.warnings?.map((warning) => <li key={warning}>{warning}</li>)}</ul>
         </aside>}
       </div>
-      <nav aria-label="Emergency calls" className="fixed inset-x-0 bottom-0 z-40 flex justify-center gap-3 border-t bg-white/95 p-3 shadow-lg">
+      <nav aria-label="Emergency calls" className="mt-8 flex flex-wrap gap-3 border-t border-slate-200 pt-4">
         <a href="tel:108" className="rounded bg-red-700 px-5 py-3 font-bold text-white" aria-label="Call ambulance at 108">Call 108</a>
         <a href="tel:112" className="rounded bg-red-900 px-5 py-3 font-bold text-white" aria-label="Call emergency services at 112">Call 112</a>
       </nav>

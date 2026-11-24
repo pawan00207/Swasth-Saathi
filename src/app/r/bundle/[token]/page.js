@@ -36,7 +36,7 @@ export default function PublicBundleReportsPage({ params }) {
   }, [loadBundle]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="rounded border-2 border-amber-500 bg-amber-50 p-3 text-center font-bold text-amber-950">
         Private medical information — only open this link if the patient shared it with you.
       </div>
@@ -97,6 +97,6 @@ export default function PublicBundleReportsPage({ params }) {
         </div>
       )}
       <p className="mt-6 text-sm text-slate-600">Demo project, not a substitute for medical advice.</p>
-    </main>
+    </div>
   );
 }

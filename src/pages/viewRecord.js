@@ -1,24 +1,20 @@
-import React, { useEffect } from "react";
-import { imageState } from "../atoms/data";
+import Head from "next/head";
+import Link from "next/link";
 import { useRecoilValue } from "recoil";
-import { useState } from "react";
+import { imageState } from "@/atoms/data";
 
-const ViewHealthRecord = () => {
-  const imageSrc = useRecoilValue(imageState);
-  const [image, setImage] = useState("");
-
-  useEffect(() => {
-    // get base64 image from atom state
-    console.log("Image Source :", imageSrc);
-    setImage(imageSrc);
-  }, []);
+export default function ViewHealthRecord() {
+  const image = useRecoilValue(imageState);
 
   return (
-    <div className="p-8 flex flex-col justify-center items-center gap-4">
-      <h1 className="text-3xl font-bold">Health Record</h1>
-      <img className="mx-16" src={image} alt="Health record image" />
+    <div className="site-container py-8 sm:py-12">
+      <Head><title>Health record | Swasth Saathi</title></Head>
+      <Link href="/dashboard" className="site-text-button">Back to record dashboard</Link>
+      <h1 className="mt-2">Health record</h1>
+      <div className="site-panel mt-6">
+        {image ? <img className="mx-auto max-h-[75vh] max-w-full object-contain" src={image} alt="Health record" /> :
+          <p className="text-slate-700">Open a record from the dashboard to view it here.</p>}
+      </div>
     </div>
   );
-};
-
-export default ViewHealthRecord;
+}

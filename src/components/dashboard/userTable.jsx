@@ -99,7 +99,7 @@ export function UserTable() {
       accessorKey: "healthRecordName",
       header: "Health Record Name",
       cell: ({ row }) => (
-        <div className="capitalize text-lg font-semibold text-emerald-900">
+        <div className="capitalize font-semibold text-slate-900">
           {row.getValue("healthRecordName")}
         </div>
       ),
@@ -109,7 +109,7 @@ export function UserTable() {
       header: "Category",
       cell: ({ row }) => (
         <div className="capitalize">
-          <Badge className="bg-emerald-700 text-emerald-50 p-1 rounded-lg">
+          <Badge className="bg-slate-100 text-slate-800 px-2 py-1 rounded-md">
             {row.getValue("healthRecordCategory")}
           </Badge>
         </div>
@@ -138,7 +138,7 @@ export function UserTable() {
         return (
           <Dialog>
             <DialogTrigger>
-              <Button className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500">
+              <Button className="bg-teal-800 text-white hover:bg-teal-900">
                 View
               </Button>
             </DialogTrigger>
@@ -163,7 +163,7 @@ export function UserTable() {
                           if (!error?.cancelled) console.error(error);
                         });
                       }}
-                      className="bg-emerald-900 text-emerald-50 hover:bg-emerald-500 mt-4"
+                      className="bg-teal-800 text-white hover:bg-teal-900 mt-4"
                     >
                       Open Record
                     </Button>
@@ -208,23 +208,23 @@ export function UserTable() {
   const isFiltered = table.getState().columnFilters.length > 0;
 
   return (
-    <div className="p-8 ">
-      <div className="text-emerald-900 font-bold text-2xl bg-emerald-50 p-4 rounded-lg inline-block">
-        My Health Records
-      </div>
+    <section className="mt-8">
+      <h2 className="text-xl font-semibold">
+        My health records
+      </h2>
       {/* Table Toolbar  */}
-      <div className="flex items-center py-4">
-        <div className="flex flex-1 items-center space-x-2">
+      <div className="flex flex-wrap items-center gap-2 py-4">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
           {" "}
           <Input
-            placeholder="Search a record..."
+            placeholder="Search records" aria-label="Search records"
             value={table.getColumn("healthRecordName")?.getFilterValue() || ""}
             onChange={(event) =>
               table
                 .getColumn("healthRecordName")
                 ?.setFilterValue(event.target.value)
             }
-            className="max-w-sm bg-emerald-50"
+            className="max-w-sm"
           />
           {/* categoryFilter UI */}
           {table.getColumn("healthRecordCategory") && (
@@ -274,7 +274,7 @@ export function UserTable() {
         </DropdownMenu>
       </div>
       {/* Table */}
-      <div className="rounded-md border bg-emerald-50">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -317,13 +317,13 @@ export function UserTable() {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No health records match this view.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-    </div>
+    </section>
   );
 }

@@ -197,10 +197,10 @@ export default function AppointmentsPage() {
           <div className="mt-4 grid gap-3 md:grid-cols-2">{filteredDoctors.map((item) => <button type="button" key={item.id} aria-pressed={doctorId === item.id} onClick={() => setDoctorId(item.id)} className={`rounded-lg border p-4 text-left ${doctorId === item.id ? "border-teal-800 bg-teal-50" : "bg-white"}`}>
             <strong>{item.name}</strong><span className="mt-1 block text-sm">{item.speciality || item.specialization} · {item.hospital}</span>
             <span className="mt-2 block text-sm">Languages: {item.languages?.join(", ") || "not listed"}</span>
-            <span className="mt-2 block text-xs font-bold text-amber-800">{item.demo ? "DEMO LISTING" : "DIRECTORY LISTING"}</span>
+            <span className="mt-2 block text-xs font-bold text-amber-800">{item.demo ? "Demo listing" : "Directory listing"}</span>
           </button>)}</div>
         </section>
-        <form onSubmit={book} className="h-fit rounded-lg border bg-white p-5">
+        <form onSubmit={book} className="site-panel h-fit">
           <h2 className="text-lg font-bold">Book appointment</h2>
           {!supabase && <label className="mt-4 block">Patient name<input required autoComplete="name" className="mt-1 w-full rounded border px-3 py-2" value={patientName} onChange={(event) => setPatientName(event.target.value)} /></label>}
           <label className="mt-3 block">Date<input required min={today} type="date" className="mt-1 w-full rounded border px-3 py-2" value={date} onChange={(event) => setDate(event.target.value)} /></label>
@@ -209,7 +209,7 @@ export default function AppointmentsPage() {
         </form>
       </div>
       {status && <p role="status" className="mt-5 rounded border border-amber-300 bg-amber-50 p-3">{status}</p>}
-      <section className="mt-8"><h2 className="text-xl font-bold">Your appointments</h2><div className="mt-3 space-y-3">{appointments.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded border bg-white p-4"><div><h3 className="font-bold">{item.doctors?.name || item.doctor || "Appointment"}</h3><p className="text-sm">{item.starts_at ? new Date(item.starts_at).toLocaleString() : `${item.date} ${item.time}`} · {item.status}</p></div><div className="flex gap-2"><button onClick={() => downloadSlip(item)} className="rounded border border-teal-800 px-3 py-2">Download appointment PDF</button>{supabase && item.status !== "cancelled" && item.status !== "completed" && <button onClick={() => cancelAppointment(item.id)} className="rounded border border-red-700 px-3 py-2 text-red-900">Cancel</button>}</div></article>)}</div></section>
+      <section className="mt-8"><h2 className="text-xl font-semibold">Your appointments</h2>{appointments.length === 0 && <p className="site-panel mt-3 text-slate-700">You have no appointments yet.</p>}<div className="mt-3 space-y-3">{appointments.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded border bg-white p-4"><div><h3 className="font-bold">{item.doctors?.name || item.doctor || "Appointment"}</h3><p className="text-sm">{item.starts_at ? new Date(item.starts_at).toLocaleString() : `${item.date} ${item.time}`} · {item.status}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => downloadSlip(item)} className="rounded border border-teal-800 px-3 py-2">Download appointment PDF</button>{supabase && item.status !== "cancelled" && item.status !== "completed" && <button onClick={() => cancelAppointment(item.id)} className="rounded border border-red-700 px-3 py-2 text-red-900">Cancel</button>}</div></article>)}</div></section>
     </div>
   );
 }

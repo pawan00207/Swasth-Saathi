@@ -378,7 +378,7 @@ export default function SosProfilePage() {
           <div className="mt-4 space-y-3">
             {contacts.map((contact, idx) => (
               <fieldset key={idx} className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-4">
-                <legend className="px-1 text-xs font-bold uppercase text-slate-700">Contact {idx + 1}</legend>
+                <legend className="px-1 text-sm font-semibold text-slate-700">Contact {idx + 1}</legend>
                 <label className="text-sm font-semibold">
                   Name
                   <input
