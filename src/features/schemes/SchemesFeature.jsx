@@ -1,4 +1,5 @@
 "use client";
+import AccessibleModal from "@/components/AccessibleModal";
 import { useEffect, useState } from "react";
 import { ExternalLink, Landmark, Search } from "lucide-react";
 import seedSchemes from "./data/schemes.json";
@@ -287,6 +288,7 @@ export default function SchemesFeature() {
                 </button>
                 <button
                   type="button"
+                  aria-pressed={saved.includes(s.id)}
                   onClick={() => toggleSave(s.id)}
                   className={`min-h-[38px] rounded-lg border px-3 py-2 text-xs font-semibold ${
                     saved.includes(s.id)
@@ -303,12 +305,10 @@ export default function SchemesFeature() {
       </div>
 
       {open && (
-        <div role="dialog" aria-modal="true" aria-labelledby="scheme-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6">
+        <AccessibleModal open onClose={() => setOpen(null)} titleId="scheme-title" title={open.name} maxWidth="max-w-xl">
             <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
               {open.scope || "Central"} · {open.category || "Healthcare"}
             </p>
-            <h2 id="scheme-title" className="mt-1 text-2xl font-extrabold text-slate-950">{open.name}</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-700">{open.description}</p>
             <p className="mt-3 text-sm text-slate-900"><strong>Benefits:</strong> {open.benefits}</p>
             <h3 className="mt-4 text-sm font-bold text-slate-900">Documents required</h3>
@@ -333,8 +333,7 @@ export default function SchemesFeature() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
+        </AccessibleModal>
       )}
     </div>
   );

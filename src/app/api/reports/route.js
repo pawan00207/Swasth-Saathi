@@ -17,6 +17,7 @@ export async function GET(request) {
       id: report.id,
       owner_id: report.ownerId,
       patient_name: report.patientName,
+      patient_reference: report.patientReference,
       report_type: report.reportType,
       report_date: report.reportDate.toISOString().slice(0, 10),
       doctor_name: report.doctorName,
@@ -56,6 +57,10 @@ export async function POST(request) {
   ) {
     return Response.json({ error: "Valid report metadata and an owner-scoped private storage path are required." }, { status: 400 });
   }
+  const patientReference = typeof body.patientId === "string" ? body.patientId.trim().toUpperCase() : "";
+  if (patientReference.length > 120) {
+    return Response.json({ error: "Patient ID must be at most 120 characters." }, { status: 400 });
+  }
   const pin = typeof body.pin === "string" ? body.pin : "";
   if (pin && !/^\d{4,6}$/.test(pin)) {
     return Response.json({ error: "Share PIN must contain 4 to 6 digits." }, { status: 400 });
@@ -65,6 +70,7 @@ export async function POST(request) {
   const report = await context.prisma.report.create({
     data: {
       ownerId: context.user.id,
+      patientReference: patientReference || null,
       patientName: body.patientName.trim().slice(0, 120),
       reportType: body.reportType.trim().slice(0, 80),
       reportDate,

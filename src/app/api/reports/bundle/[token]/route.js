@@ -55,7 +55,9 @@ export async function GET(request, { params }) {
       data: { viewCount: { increment: 1 }, wrongAttempts: 0, lockedUntil: null },
     });
     const reports = await transaction.report.findMany({
-      where: { id: { in: share.reportIds }, ownerId: share.ownerId },
+      where: { ownerId: share.ownerId, ...(share.patientReference
+        ? { patientReference: share.patientReference }
+        : { id: { in: share.reportIds } }) },
       orderBy: { reportDate: "desc" },
     });
     return { state: "ok", reports };

@@ -15,6 +15,18 @@ function getSupabaseEnv() {
   };
 }
 
+async function checkTelegramChat(chatId) {
+  const { botToken } = getTelegramConfig();
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/getChat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId }),
+    signal: AbortSignal.timeout(6500),
+    cache: "no-store",
+  });
+  return response.ok && (await response.json()).ok === true;
+}
+
 const checks = [
   {
     name: "Supabase Auth / Storage",
@@ -47,7 +59,11 @@ const checks = [
   {
     name: "Saarthi Gemini AI",
     configured: () => Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY),
-    test: async () => Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY),
+
+  },
+  {
+    name: "Saarthi Groq Backup",
+    configured: () => Boolean(process.env.GROQ_API_KEY?.trim()),
   },
   {
     name: "Prisma Postgres",
@@ -123,7 +139,7 @@ const checks = [
   {
     name: "Razorpay Webhook",
     configured: () => Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
-    test: async () => Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
+
   },
   {
     name: "WhatsApp Bot",
@@ -150,14 +166,12 @@ const checks = [
   {
     name: "Telegram Bot",
     configured: () => isTelegramConfigured(),
-    test: async () => {
-      const { botToken } = getTelegramConfig();
-      const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(botToken)}/getMe`, {
-        cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      return Boolean(response.ok && data?.ok);
-    },
+    test: async () => checkTelegramChat(getTelegramConfig().chatId),
+  },
+  {
+    name: "Telegram SOS Chat",
+    configured: () => isTelegramConfigured({ emergency: true }),
+    test: async () => checkTelegramChat(getTelegramConfig().emergencyChatId),
   },
   {
     name: "SOS Emergency",
@@ -200,7 +214,8 @@ export async function GET(request) {
 
   const results = await Promise.all(checks.map(async (check) => {
     const configured = check.configured();
-    if (!configured) return { name: check.name, configured, ok: false, state: "cached" };
+    if (!configured) return { name: check.name, configured, ok: false, state: "unconfigured" };
+    if (!check.test) return { name: check.name, configured, ok: false, state: "unverified" };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {

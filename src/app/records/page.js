@@ -9,33 +9,6 @@ import { useI18n } from "../../components/I18nProvider";
 import { resolveClientPublicOrigin } from "../../lib/url";
 import { getRecordDownloadUrl } from "../../features/records-qr/qr";
 
-const HISTORICAL_CLINICAL_REPORTS = [
-  {
-    id: "REC-AIIMS-2026-0412",
-    patientName: "Aarav Sharma",
-    reportType: "Cardiology · Lipid Profile & ECG",
-    reportDate: "2026-11-22",
-    doctor: "Dr. Karthik Iyer (AIIMS New Delhi)",
-    notes: "Total Cholesterol 178 mg/dL, HDL 52 mg/dL, Normal Sinus Rhythm 72 bpm.",
-  },
-  {
-    id: "REC-SAFD-2026-0389",
-    patientName: "Aarav Sharma",
-    reportType: "Radiology · Chest X-Ray (PA View)",
-    reportDate: "2026-11-18",
-    doctor: "Dr. Meera Sharma (Safdarjung Hospital)",
-    notes: "Clear lung fields, normal cardiomediastinal silhouette. No active pulmonary lesion.",
-  },
-  {
-    id: "REC-PGI-2026-0314",
-    patientName: "Aarav Sharma",
-    reportType: "Pathology · Complete Blood Count (CBC)",
-    reportDate: "2026-11-10",
-    doctor: "Dr. Ananya Sen (PGIMER Chandigarh)",
-    notes: "Hb 14.1 g/dL, WBC 6,800/uL, Platelets 2.45 lakh/uL. All indices within reference range.",
-  },
-];
-
 export default function MyReportsPage() {
   const { language, t } = useI18n();
   const [reports, setReports] = useState([]);
@@ -54,34 +27,27 @@ export default function MyReportsPage() {
   const [error, setError] = useState("");
 
   async function load() {
-    const [cfg, supabase, vaultRes] = await Promise.all([
+    const [cfg, supabase] = await Promise.all([
       fetchPublicConfig().catch(() => null),
       ensureSupabaseBrowser(),
-      fetch("/api/reports/vault", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
     if (cfg?.appBaseUrl) setAppBaseUrl(resolveClientPublicOrigin(cfg.appBaseUrl));
-
-    const localSaved = JSON.parse(localStorage.getItem("swasth_care_vault_reports") || "[]");
-    const serverVault = Array.isArray(vaultRes?.reports) ? vaultRes.reports : [];
-    const mergedLocal = [...localSaved, ...serverVault.filter((sr) => !localSaved.some((lr) => lr.id === sr.id))];
-    const fallbackReports = mergedLocal.length ? mergedLocal : HISTORICAL_CLINICAL_REPORTS;
-
     if (!supabase) {
-      setReports(fallbackReports);
+      setReports([]);
       setLoading(false);
       return;
     }
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
       setError(sessionError.message);
-      setReports(fallbackReports);
+      setReports([]);
       setLoading(false);
       return;
     }
     const currentUser = sessionData.session?.user;
     setUser(currentUser || null);
     if (!currentUser) {
-      setReports(fallbackReports);
+      setReports([]);
       setLoading(false);
       return;
     }
@@ -92,10 +58,11 @@ export default function MyReportsPage() {
     ]);
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setReports(fallbackReports);
+      setError("Could not load your cloud reports.");
+      setReports([]);
     } else {
       const cloudReports = result.reports || [];
-      setReports(cloudReports.length ? cloudReports : fallbackReports);
+      setReports(cloudReports);
       setShares(result.shares || []);
       setEmergencyContact(result.emergencyContact || "");
     }
@@ -107,7 +74,7 @@ export default function MyReportsPage() {
   }
 
   useEffect(() => {
-    load();
+    load().catch(() => { setError("Could not load your reports."); setLoading(false); });
   }, []);
 
   async function createShare(report) {
@@ -148,6 +115,30 @@ export default function MyReportsPage() {
       }
     } catch (reason) {
       setError(reason.message || "Could not create secure report link.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function showPatientQr(reportId) {
+    setSharing(true);
+    setError("");
+    try {
+      const client = await ensureSupabaseBrowser();
+      const session = client && (await client.auth.getSession()).data.session;
+      if (!session) throw new Error("Sign in to open a patient QR.");
+      const response = await fetch("/api/reports/bundle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ patientReportId: reportId, expiry, pin: sharePin }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not open the patient QR.");
+      setShareQr({ reportId: "patient", label: "Patient report QR", url: result.url,
+        qr: await QRCode.toDataURL(result.url), pinProtected: result.pinProtected });
+      await load();
+    } catch (reason) {
+      setError(reason.message || "Could not open the patient QR.");
     } finally {
       setSharing(false);
     }
@@ -318,6 +309,7 @@ export default function MyReportsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="integrated-service-title text-3xl font-bold text-teal-900">My Reports</h1>
+      {user && !reports.length && !error && <p className="site-panel mt-3">Your report list is empty. <a href="/records/upload" className="underline">Upload a report</a></p>}
       {!user && getSupabaseBrowser() && (
         <p className="mt-3 rounded bg-teal-50 p-3 text-sm">
           Sign in to sync encrypted cloud files. <a className="font-bold underline" href="/auth">Sign in</a>
@@ -412,7 +404,7 @@ export default function MyReportsPage() {
                 .map((b) => (
                   <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded border bg-white p-2.5 text-xs">
                     <span>
-                      Bundle of <strong>{b.reportIds.length}</strong> reports ·{" "}
+                      {b.patientReference ? "Patient QR · " + b.patientReference : "Bundle of " + b.reportIds.length + " reports"} ·{" "}
                       {b.expiresAt ? `expires ${new Date(b.expiresAt).toLocaleString()}` : "no expiry"} · {b.viewCount} views
                     </span>
                     <button
@@ -434,9 +426,9 @@ export default function MyReportsPage() {
           <img src={shareQr.qr} alt="Scannable report QR code" className="h-36 w-36" />
           <div>
             <h2 className="font-bold">{shareQr.label || "Scannable report QR"}</h2>
-            <a href={shareQr.url} download className="mt-2 block break-all text-sm text-teal-900 underline">{shareQr.url}</a>
+            <a href={shareQr.url} className="mt-2 block break-all text-sm text-teal-900 underline">{shareQr.url}</a>
             <p className="mt-2 text-xs text-slate-600">
-              Scanning this QR downloads the report directly.{shareQr.pinProtected ? " Share the PIN with the recipient separately." : ""}
+              {shareQr.reportId === "patient" ? "This QR includes current and future reports you upload with the same patient ID." : "Scan to open the shared reports."}{shareQr.pinProtected ? " Share the PIN with the recipient separately." : ""}
             </p>
           </div>
         </section>
@@ -465,6 +457,7 @@ export default function MyReportsPage() {
                     <h2 className="text-lg font-bold">
                       {report.patient_name || report.patientName} · {report.report_type || report.reportType}
                     </h2>
+                    {report.patient_reference && <p className="text-xs text-slate-600">Patient ID: {report.patient_reference}</p>}
                     <p className="text-sm text-slate-600">
                       {report.report_date || report.reportDate || report.uploadedAt} · {report.doctor_name || report.doctor || "Doctor not specified"}
                     </p>
@@ -476,6 +469,7 @@ export default function MyReportsPage() {
               </div>
               {report.notes && <p className="mt-2 text-sm">{report.notes}</p>}
               <div className="mt-4 flex flex-wrap gap-2">
+                {report.patient_reference && <button type="button" disabled={sharing} onClick={() => showPatientQr(report.id)} className="rounded border px-3 py-2 font-semibold">Open patient QR</button>}
                 <button onClick={() => downloadReport(report)} className="rounded border px-3 py-2 font-semibold">
                   Download report
                 </button>

@@ -1,8 +1,7 @@
 import { getPrisma } from "../../../../../lib/prisma";
 import { getAuthenticatedUser, getSupabaseAdmin } from "../../../../../lib/supabase/server";
 import { getPublicBaseUrl } from "../../../../../lib/url";
-import { buildReportPdfBuffer } from "../../../../../lib/pdf-builder";
-import { getVaultReport, isValidReportId } from "../../../../../lib/report-vault";
+import { isValidReportId } from "../../../../../lib/report-vault";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +13,7 @@ const MIME_TO_EXT = {
 };
 
 export async function GET(request, { params }) {
-  const rawId = decodeURIComponent(params.id || "").trim();
+  const rawId = (params.id || "").trim();
   if (!isValidReportId(rawId)) {
     return Response.json({ error: "Invalid report ID." }, { status: 400 });
   }
@@ -68,56 +67,10 @@ export async function GET(request, { params }) {
         }
       }
     } catch {
-      // Fall through to report vault
+      return Response.json({ error: "Report storage is unavailable." }, { status: 503 });
     }
   }
 
-  // 2. Check cross-device vault store & historical clinical reports
-  const vaultReport = getVaultReport(rawId);
-  if (format === "json") {
-    if (!vaultReport) {
-      return Response.json({ error: "Report not found." }, { status: 404 });
-    }
-    const { fileBuffer: _buf, ...meta } = vaultReport;
-    return Response.json(
-      {
-        report: meta,
-        downloadUrl: `${baseUrl}/api/reports/download/${encodeURIComponent(rawId)}`,
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  }
-
-  const reportData = vaultReport || {
-    id: rawId,
-    patientName: "Swasth Saathi Patient",
-    patientId: "ABHA-VERIFIED",
-    reportType: "Clinical Health Record",
-    reportDate: new Date().toISOString().slice(0, 10),
-    doctor: "Swasth Saathi Care Network",
-    notes: `Verified Digital Health Record (${rawId}) retrieved via Care Vault QR.`,
-    mimeType: "application/pdf",
-  };
-
-  if (reportData.fileBuffer && reportData.fileBuffer.length > 0) {
-    const ext = MIME_TO_EXT[reportData.mimeType] || "pdf";
-    return new Response(reportData.fileBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": reportData.mimeType || "application/pdf",
-        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="swasth-report-${rawId}.${ext}"`,
-        "Cache-Control": "no-store",
-      },
-    });
-  }
-
-  const pdfBuffer = buildReportPdfBuffer(reportData);
-  return new Response(pdfBuffer, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="swasth-report-${rawId}.pdf"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  return Response.json({ error: "Report unavailable. Sign in as the owner or use a valid share link." },
+    { status: 404, headers: { "Cache-Control": "no-store" } });
 }

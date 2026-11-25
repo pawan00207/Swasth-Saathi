@@ -91,7 +91,7 @@ export default function SetupStatusPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-teal-900">Integration setup status</h1>
@@ -118,7 +118,7 @@ export default function SetupStatusPage() {
                 className={`rounded px-2 py-1 text-xs font-bold ${
                   integration.ok
                     ? "bg-green-100 text-green-900"
-                    : integration.configured
+                    : integration.state === "unavailable"
                       ? "bg-red-100 text-red-900"
                       : "bg-amber-100 text-amber-950"
                 }`}
@@ -130,7 +130,7 @@ export default function SetupStatusPage() {
               Environment keys: {integration.configured ? "present" : "missing"}
             </p>
             <p className="mt-1 text-sm text-slate-700">
-              Live test: {integration.ok ? "succeeded" : integration.configured ? "failed or unavailable" : "not run"}
+              Live test: {integration.ok ? "succeeded" : integration.state === "unavailable" ? "failed or unavailable" : "not run"}
             </p>
           </article>
         ))}
@@ -202,6 +202,6 @@ export default function SetupStatusPage() {
       {checkedAt && (
         <p className="mt-4 text-sm text-slate-500">Last checked: {new Date(checkedAt).toLocaleString()}</p>
       )}
-    </main>
+    </div>
   );
 }

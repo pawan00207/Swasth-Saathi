@@ -232,6 +232,7 @@ model Report {
   id                     String             @id @default(cuid())
   ownerId                String
   patientName            String
+  patientReference       String?
   reportType             String
   reportDate             DateTime           @default(now())
   doctorName             String?
@@ -244,6 +245,8 @@ model Report {
   createdAt              DateTime           @default(now())
   owner                  Profile            @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
   shareTokens            ReportShareToken[]
+
+  @@index([ownerId, patientReference])
 }
 
 model ReportShareToken {
@@ -439,6 +442,7 @@ model EmergencyCardToken {
 model ReportBundleShareToken {
   id            String    @id @default(cuid())
   ownerId       String    @map("owner_id")
+  patientReference String? @map("patient_reference")
   reportIds     String[]  @default([]) @map("report_ids")
   tokenHash     String    @unique @map("token_hash")
   pinSalt       String?   @map("pin_salt")
@@ -452,5 +456,6 @@ model ReportBundleShareToken {
   owner         Profile   @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
 
   @@index([ownerId, createdAt])
+  @@index([ownerId, patientReference])
   @@map("report_bundle_share_tokens")
 }
