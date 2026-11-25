@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { motion, MotionConfig } from "motion/react";
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import {
@@ -16,6 +17,9 @@ const CreateDid = dynamic(() => import("@/components/form/createDid"), {
   ssr: false,
   loading: () => <p role="status">Loading record setup…</p>,
 });
+
+const ServiceLink = motion.create(Link);
+const serviceSpring = { type: "spring", stiffness: 420, damping: 32 };
 
 const serviceGroups = [
   {
@@ -56,7 +60,7 @@ export default function Home() {
   }
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <Head>
         <title>Swasth Saathi | Find and manage care</title>
         <meta name="description" content={homeDescription} />
@@ -81,11 +85,12 @@ export default function Home() {
           <nav className="care-finder" aria-labelledby="care-finder-title">
             <h2 id="care-finder-title">{t("home.finder")}</h2>
             {serviceGroups[0].services.map(([Icon, href, label, description]) => (
-              <Link key={href} href={href} prefetch={false}>
+              <ServiceLink key={href} href={href} prefetch={false}
+                whileHover={{ y: -3 }} whileFocus={{ y: -3 }} whileTap={{ scale: 0.98 }} transition={serviceSpring}>
                 <span className="finder-icon"><Icon size={23} strokeWidth={1.6} aria-hidden="true" /></span>
                 <span><strong>{t(label)}</strong><small>{t(description)}</small></span>
                 <ArrowUpRight size={18} aria-hidden="true" />
-              </Link>
+              </ServiceLink>
             ))}
           </nav>
         </div>
@@ -97,11 +102,12 @@ export default function Home() {
         </div>
         <div className="care-tools">
           {serviceGroups[1].services.map(([Icon, href, label, description]) => (
-            <Link key={href} href={href} prefetch={false}>
+            <ServiceLink key={href} href={href} prefetch={false}
+                whileHover={{ y: -3 }} whileFocus={{ y: -3 }} whileTap={{ scale: 0.98 }} transition={serviceSpring}>
               <Icon aria-hidden="true" size={26} strokeWidth={1.5} />
               <strong>{t(label)}</strong><small>{t(description)}</small>
               <ArrowUpRight aria-hidden="true" size={18} />
-            </Link>
+            </ServiceLink>
           ))}
         </div>
       </section>
@@ -128,6 +134,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </>
+    </MotionConfig>
   );
 }

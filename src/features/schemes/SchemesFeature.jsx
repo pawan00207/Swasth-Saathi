@@ -95,19 +95,20 @@ export default function SchemesFeature() {
   });
   return (
     <div className="site-container py-8 sm:py-12">
-      <h1>Government schemes and subsidies</h1>
+      <header className="service-mast scheme-mast"><div><h1>Government schemes and subsidies</h1>
       <p className="mt-2 text-slate-700">Find support schemes and check which eligibility rules might apply to you.</p>
       <p className="mt-3 text-sm text-slate-600">
         {source === "seeded-demo" ? "Showing the demo catalogue." : `Catalogue source: ${source}.`} Confirm current rules on the official application portal.
       </p>
+      </div>          <label className="grid gap-2 text-sm font-medium">Search
+            <Input placeholder="Search by scheme name or keyword" type="search" value={profile.search} onChange={(event) => update("search", event.target.value)} />
+          </label></header>
       {notice && <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-amber-950">{notice}</p>}
 
-      <section className="site-panel mt-6" aria-labelledby="scheme-filters">
-        <h2 id="scheme-filters" className="text-lg font-semibold">Search and check eligibility</h2>
+      <details className="eligibility-drawer">
+        <summary>Filter by eligibility</summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="grid gap-2 text-sm font-medium">Search
-            <Input type="search" value={profile.search} onChange={(event) => update("search", event.target.value)} />
-          </label>
+
           <label className="grid gap-2 text-sm font-medium">Disability
             <select className="site-field" value={profile.disability} onChange={(event) => update("disability", event.target.value)}>
               <option value="none">All</option>
@@ -139,7 +140,7 @@ export default function SchemesFeature() {
             </select>
           </label>
         </div>
-      </section>
+      </details>
 
       <section className="mt-8" aria-labelledby="scheme-results">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -149,14 +150,14 @@ export default function SchemesFeature() {
           </p>
         </div>
         {!filtered.length && <p className="site-panel mt-4">No schemes match these filters. Try another search or disability filter.</p>}
-        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="scheme-catalogue">
           {filtered.map((scheme) => {
             const eligibility = explainSchemeMatch(scheme, profile);
             const labels = { eligible: "Eligible", likely: "Likely eligible" };
             const isSaved = saved.includes(scheme.id);
             return (
               <article key={scheme.id} className="site-panel flex min-w-0 flex-col gap-3">
-                <p className="text-sm font-medium text-teal-900">{labels[eligibility.status] || "Check documents"}</p>
+                <p className="scheme-match">{labels[eligibility.status] || "Check documents"}</p>
                 <h3 className="text-lg font-semibold">{scheme.name}</h3>
                 <p className="text-sm text-slate-700">{scheme.description}</p>
                 <p className="text-sm"><strong>Benefit:</strong> {scheme.benefits}</p>

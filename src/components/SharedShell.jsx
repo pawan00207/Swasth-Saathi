@@ -23,6 +23,12 @@ const navItems = [
   ["nav.blockchain", "/blockchain"],
 ];
 
+const serviceSections = [
+  ["home.find", ["/schemes", "/route", "/beds", "/consult"]],
+  ["home.manage", ["/records", "/billing", "/appointments", "/auth"]],
+];
+const routeLabels = Object.fromEntries(navItems.map(([key, path]) => [path, key]));
+
 const primaryPaths = new Set(["/schemes", "/records", "/billing", "/beds"]);
 
 export default function SharedShell({ children, isHome = false }) {
@@ -96,6 +102,9 @@ export default function SharedShell({ children, isHome = false }) {
   }, [showStatus]);
 
   const pathname = usePathname();
+  const section = serviceSections.find(([, paths]) =>
+    paths.some((path) => pathname === path || pathname?.startsWith(path + "/"))
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRoot = useRef(null);
   const [query, setQuery] = useState("");
@@ -237,6 +246,21 @@ export default function SharedShell({ children, isHome = false }) {
         )}
       </header>
       <main id="main-content" className="site-main" data-surface={isHome ? "home" : "app"} tabIndex={-1}>
+        {section && (
+          <nav className="section-nav" aria-label={t(section[0])}>
+            <div className="site-container">
+              <strong>{t(section[0])}</strong>
+              <div className="section-nav-links">
+                {section[1].map((path) => (
+                  <Link key={path} href={path} prefetch={false}
+                    aria-current={pathname === path ? "page" : pathname?.startsWith(path + "/") ? "location" : undefined}>
+                    {t(routeLabels[path])}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </nav>
+        )}
         {children}
       </main>
       <footer className="site-footer">
@@ -245,12 +269,16 @@ export default function SharedShell({ children, isHome = false }) {
             <Link href="/"><img width="212" height="57" src="/images/swasth-saathi-logo.webp" alt={t("appName")} /></Link>
             <p>{t("shell.footerDisclaimer")}</p>
           </div>
-          {[["home.find", ["/schemes", "/route", "/beds", "/consult"]], ["home.manage", ["/records", "/billing", "/appointments", "/auth"]]].map(([title, routes]) => (
+          {serviceSections.map(([title, routes]) => (
             <nav key={title} className="footer-service-links" aria-label={t(title)}>
               <h2>{t(title)}</h2>
-              {routes.map((href) => <Link key={href} href={href}>{t(navItems.find(([, path]) => path === href)[0])}</Link>)}
+              {routes.map((href) => <Link key={href} href={href}>{t(routeLabels[href])}</Link>)}
             </nav>
           ))}
+        </div>
+        <div className="site-container footer-utilities">
+          <Link href="/sos">{t("nav.sos")}</Link>
+          <Link href="/dashboard">{t("shell.dashboard")}</Link>
           <button type="button" className="site-text-button" aria-expanded={showStatus}
             aria-controls="integration-status" onClick={() => setShowStatus((visible) => !visible)}>
             {showStatus ? t("shell.hideStatus") : t("shell.viewStatus")}

@@ -342,7 +342,7 @@ export default function BedsFeature() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="service-mast flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold text-teal-900">{t("beds.title")}</h1>
         <a
           href="/beds/admin"

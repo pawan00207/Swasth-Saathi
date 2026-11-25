@@ -123,8 +123,8 @@ export default function RouteFeature() {
     (!nearbyFilters.speciality || hospital.speciality?.toLowerCase().includes(nearbyFilters.speciality.toLowerCase())));
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
-      <h1 className="text-3xl font-bold text-teal-900">Accessible hospital routing</h1>
-      <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p>
+      <header className="service-mast"><h1 className="text-3xl font-bold text-teal-900">Accessible hospital routing</h1>
+      <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p></header>
       <form onSubmit={(event) => { event.preventDefault(); plan(positionRef.current); }} className="mt-5 grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-2">
         <label>Origin<input className="mt-1 w-full rounded border px-3 py-2" value={origin} onChange={(event) => setOrigin(event.target.value)} required /></label>
         <label>Destination<select className="mt-1 w-full rounded border px-3 py-2" value={destination} onChange={(event) => { setDestination(event.target.value); setDestinationCoordinates(null); }}>{hospitals.map((hospital) => <option key={hospital.id}>{hospital.name}</option>)}</select></label>

@@ -180,7 +180,7 @@ export default function AppointmentsPage() {
   const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">Appointments</h1>
+      <header className="service-mast"><h1 className="text-3xl font-bold text-teal-900">Appointments</h1></header>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <LiveIndicator connected={realtimeConnected} />
         <p className="text-slate-600">{live ? "Doctor directory and bookings use Prisma Postgres; status updates use Realtime with polling fallback." : "Demo scheduling remains available without provider setup."}</p>

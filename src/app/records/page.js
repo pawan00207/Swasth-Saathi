@@ -250,8 +250,8 @@ export default function MyReportsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">My Reports</h1>
-      <p className="mt-2 text-slate-700">View medical reports and manage the QR links you share.</p>
+      <header className="service-mast"><h1 className="text-3xl font-bold text-teal-900">My Reports</h1>
+      <p className="mt-2 text-slate-700">View medical reports and manage the QR links you share.</p></header>
       {needsSignIn && (
         <section className="feature-gate mt-6" aria-labelledby="report-sign-in">
           <Lock size={22} strokeWidth={1.6} aria-hidden="true" />

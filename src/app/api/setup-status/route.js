@@ -125,7 +125,7 @@ const checks = [
   },
   {
     name: "SOS Emergency",
-    configured: () => Boolean(process.env.DATABASE_URL || isWhatsAppConfigured(getActiveWhatsAppProviderName())),
+    configured: () => Boolean(process.env.DATABASE_URL),
     test: async () => {
       const prisma = getPrisma();
       if (!prisma) return false;
@@ -135,9 +135,9 @@ const checks = [
   },
   {
     name: "Overpass",
-    configured: () => Boolean(process.env.OVERPASS_API_URL),
+    configured: () => true,
     test: async () => {
-      const response = await fetch(process.env.OVERPASS_API_URL, {
+      const response = await fetch(process.env.OVERPASS_API_URL || "https://overpass-api.de/api/interpreter", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "data=%5Bout%3Ajson%5D%5Btimeout%3A5%5D%3Bnode%28around%3A100%2C28.6139%2C77.2090%29%5Bamenity%3Dhospital%5D%3Bout%201%3B",

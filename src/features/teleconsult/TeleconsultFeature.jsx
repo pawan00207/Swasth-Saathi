@@ -174,7 +174,7 @@ export default function TeleconsultFeature() {
     (!languageFilter || doctor.languages?.includes(languageFilter)));
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">Teleconsultation</h1>
+      <header className="service-mast"><h1 className="text-3xl font-bold text-teal-900">Teleconsultation</h1></header>
       <p className="mt-2 rounded border border-amber-300 bg-amber-50 p-3 text-amber-950">
         {supabase ? "Live booking requires an authenticated patient account. Secure video requires JaaS configuration." : "Demo doctors, local appointments, and a public Jitsi demo room. Do not share private medical information in demo rooms."}
         {" "}This service is not emergency triage or a substitute for medical advice.
