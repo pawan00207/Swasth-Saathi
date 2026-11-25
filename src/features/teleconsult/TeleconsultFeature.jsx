@@ -276,7 +276,7 @@ export default function TeleconsultFeature() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">Teleconsultation</h1>
+      <h1 className="integrated-service-title text-3xl font-bold text-teal-900">Teleconsultation</h1>
       <p className="mt-2 rounded border border-teal-300 bg-teal-50 p-3 text-teal-950">
         {supabase
           ? "NMC-verified doctor directory connected. Sign in for cloud-synced consultations and private JaaS video rooms."

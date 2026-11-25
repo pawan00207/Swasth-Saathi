@@ -317,7 +317,7 @@ export default function MyReportsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">My Reports</h1>
+      <h1 className="integrated-service-title text-3xl font-bold text-teal-900">My Reports</h1>
       {!user && getSupabaseBrowser() && (
         <p className="mt-3 rounded bg-teal-50 p-3 text-sm">
           Sign in to sync encrypted cloud files. <a className="font-bold underline" href="/auth">Sign in</a>

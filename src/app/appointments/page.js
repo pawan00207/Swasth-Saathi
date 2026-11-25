@@ -193,7 +193,7 @@ export default function AppointmentsPage() {
   const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-teal-900">Appointments</h1>
+      <h1 className="integrated-service-title text-3xl font-bold text-teal-900">Appointments</h1>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <LiveIndicator connected={realtimeConnected} />
         <p className="text-slate-600">{live ? "Doctor directory and bookings use live cloud sync with Realtime updates." : "NMC-verified doctor directory connected for instant appointment scheduling."}</p>

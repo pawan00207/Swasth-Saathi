@@ -21,7 +21,7 @@ export default function PublicVerifyBillPage({ params }) {
   }, [params.token]);
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
+    <div className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-bold text-teal-900">Care Wallet Bill Verification</h1>
       <p className="mt-2 text-sm text-slate-600">
         Public verification shows only hospital name, bill number, date, total, and integrity status. No patient details are exposed.
@@ -44,6 +44,6 @@ export default function PublicVerifyBillPage({ params }) {
           </dl>
         </section>
       )}
-    </main>
+    </div>
   );
 }

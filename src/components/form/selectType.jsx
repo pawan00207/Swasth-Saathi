@@ -1,42 +1,20 @@
-import React from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Building2, User } from "lucide-react";
 
-export default function SelectType({ setType, setStep, embedded = false }) {
-  const [value, setValue] = React.useState("");
+const roles = [
+  ["individual", User, "Individual", "View and manage health records"],
+  ["organization", Building2, "Organization", "Issue health records to patients"],
+];
 
+export default function SelectType({ onSelect }) {
   return (
-    <div className={`flex flex-col items-center justify-center ${embedded ? "py-6" : "mt-32"} animate-in slide-in-from-bottom fade-in duration-700`}>
-      <h2 className={`${embedded ? "text-xl mb-4" : "text-4xl mb-8"} text-center font-bold text-slate-950`}>
-        Are you an individual or Organization?
-      </h2>
-      <ToggleGroup
-        value={value}
-        onValueChange={(next) => {
-          if (next) {
-            setValue(next);
-            setType(next);
-            setStep(1);
-          }
-        }}
-        size={"lg"}
-        variant="outline"
-        type="single"
-      >
-        <ToggleGroupItem
-          value="individual"
-          aria-label="Toggle user"
-          className="text-base font-semibold text-teal-900 hover:bg-teal-800 hover:text-white"
-        >
-          <span>Individual</span>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="organization"
-          aria-label="Toggle Organization"
-          className="text-base font-semibold text-teal-900 hover:bg-teal-800 hover:text-white"
-        >
-          <span>Organization</span>
-        </ToggleGroupItem>
-      </ToggleGroup>
+    <div className="grid gap-2">
+      <h3 className="text-base font-semibold">Choose your role</h3>
+      {roles.map(([value, Icon, label, description]) => (
+        <button key={value} type="button" className="record-role" onClick={() => onSelect(value)}>
+          <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span><strong>{label}</strong><small>{description}</small></span>
+        </button>
+      ))}
     </div>
   );
 }

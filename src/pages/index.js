@@ -1,183 +1,141 @@
-import React, { useState } from "react";
+import Head from "next/head";
 import Link from "next/link";
+import { motion, MotionConfig } from "motion/react";
+import dynamic from "next/dynamic";
+import { useRef, useState } from "react";
 import {
-  BedDouble,
-  FileHeart,
-  HeartPulse,
-  Landmark,
-  MapPin,
-  ShieldAlert,
-  ShieldCheck,
-  Stethoscope,
-  Wallet,
+  ArrowDown, ArrowUpRight, CalendarDays, FileHeart, HeartHandshake, Building2, MapPin, Receipt, Video,
 } from "lucide-react";
+import { useI18n } from "@/components/I18nProvider";
+import BlurText from "@/components/BlurText";
 import SelectType from "@/components/form/selectType";
 import EnterDetails from "@/components/form/EnterDetails";
-import CreateDid from "@/components/form/createDid";
 
-const MODULES = [
+const homeDescription = "Discover trusted schemes, manage medical records, and find the right care faster — all in one place.";
+
+const CreateDid = dynamic(() => import("@/components/form/createDid"), {
+  ssr: false,
+  loading: () => <p role="status">Loading record setup…</p>,
+});
+
+const ServiceLink = motion.create(Link);
+const serviceSpring = { type: "spring", stiffness: 420, damping: 32 };
+
+const serviceGroups = [
   {
-    href: "/patient",
-    title: "Patient Health Hub",
-    desc: "Medical history, saved hospital preferences & past bed requests synced via Supabase.",
-    icon: FileHeart,
+    title: "Find care and support",
+    services: [
+      [HeartHandshake, "/schemes", "nav.schemes", "home.schemes"],
+      [MapPin, "/route", "nav.route", "home.route"],
+      [Building2, "/beds", "nav.beds", "home.beds"],
+      [Video, "/consult", "nav.consult", "home.consult"],
+    ],
   },
   {
-    href: "/beds",
-    title: "Live ICU & Oxygen Beds",
-    desc: "Real-time hospital bed availability, Telegram alerts & one-tap bed requests.",
-    icon: BedDouble,
-  },
-  {
-    href: "/billing",
-    title: "Care Wallet (Razorpay)",
-    desc: "Settle hospital bills for any hospital with GST breakdowns, QR verification & PDFs.",
-    icon: Wallet,
-  },
-  {
-    href: "/abdm",
-    title: "ABDM, Aadhaar & Face KYC",
-    desc: "Real-time ABHA lookup, Aadhaar OTP e-KYC verification & live selfie face check.",
-    icon: ShieldCheck,
-  },
-  {
-    href: "/schemes",
-    title: "Government Schemes",
-    desc: "Filter 24+ PM-JAY, disability & state health schemes with direct official portal links.",
-    icon: Landmark,
-  },
-  {
-    href: "/route",
-    title: "Accessible Routing",
-    desc: "Wheelchair, ramp & elevator-verified hospital navigation powered by OSRM & OSM.",
-    icon: MapPin,
-  },
-  {
-    href: "/consult",
-    title: "Teleconsultation",
-    desc: "Connect with verified doctors via video/audio consults and digital prescriptions.",
-    icon: Stethoscope,
-  },
-  {
-    href: "/sos",
-    title: "SOS & Emergency Card",
-    desc: "Instant emergency dispatch to contacts & Telegram admins with scannable QR card.",
-    icon: ShieldAlert,
+    title: "More ways to manage care",
+    services: [
+      [FileHeart, "/patient", "nav.patient", "nav.patient"],
+      [FileHeart, "/abdm", "nav.abdm", "nav.abdm"],
+      [FileHeart, "/records", "nav.myReports", "home.reports"],
+      [Receipt, "/billing", "nav.billing", "home.billing"],
+      [CalendarDays, "/appointments", "nav.appointments", "home.appointments"],
+    ],
   },
 ];
 
-export default function HomePage() {
+export default function Home() {
+  const { t, language, formatCurrency } = useI18n();
   const [type, setType] = useState("");
   const [details, setDetails] = useState({ name: "", year: "" });
   const [step, setStep] = useState(0);
+  const setupHeading = useRef(null);
+
+  function changeStep(nextStep) {
+    setStep(nextStep);
+    setupHeading.current?.focus({ preventScroll: true });
+  }
+
+  function selectRole(nextRole) {
+    if (nextRole !== type) setDetails({ name: "", year: "" });
+    setType(nextRole);
+    changeStep(1);
+  }
 
   return (
-    <div className="swasth-canvas min-h-screen text-slate-900">
-      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="inline-flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-950">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-800 text-white">
-              <HeartPulse className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <span>Swasth Saathi</span>
-          </Link>
-          <nav aria-label="Primary navigation" className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-            <Link href="/patient" className="rounded-lg px-2.5 py-1.5 text-slate-700 hover:bg-slate-100">Patient Hub</Link>
-            <Link href="/beds" className="rounded-lg px-2.5 py-1.5 text-slate-700 hover:bg-slate-100">Beds</Link>
-            <Link href="/billing" className="rounded-lg px-2.5 py-1.5 text-slate-700 hover:bg-slate-100">Care Wallet</Link>
-            <Link href="/abdm" className="rounded-lg px-2.5 py-1.5 text-slate-700 hover:bg-slate-100">ABDM / ABHA</Link>
-            <Link href="/schemes" className="rounded-lg px-2.5 py-1.5 text-slate-700 hover:bg-slate-100">Schemes</Link>
-            <Link href="/auth" className="rounded-lg bg-teal-800 px-3.5 py-1.5 font-bold text-white hover:bg-teal-900">
-              Sign In
-            </Link>
+    <MotionConfig reducedMotion="user">
+      <Head>
+        <title>Swasth Saathi | Find and manage care</title>
+        <meta name="description" content={homeDescription} />
+        <meta property="og:title" content="Swasth Saathi | Find and manage care" />
+        <meta property="og:description" content={homeDescription} />
+        <meta property="og:type" content="website" />
+        <meta name="page-type" content="software" />
+        <meta name="site-kind" content="software" />
+      </Head>
+
+      <section className="care-front" aria-labelledby="home-title">
+        <div className="site-container care-front-grid">
+          <picture className="care-front-portrait" aria-hidden="true">
+            <source media="(min-width: 75rem)" srcSet="/images/care-reception.webp" />
+            <img src="/images/care-reception-small.webp" alt="" width="768" height="512" fetchpriority="high" />
+          </picture>
+          <div className="care-front-copy">
+            <h1 id="home-title"><span>{t("home.find")}</span><em><BlurText key={language} text={t("home.visit")} trigger="load" delay={55} blur={4} distance={10} /></em></h1>
+            <p>{t("home.intro")}</p>
+            <Link href="/records" className="care-record-link">{t("home.open")} <ArrowUpRight size={17} aria-hidden="true" /></Link>
+          </div>
+          <nav className="care-finder" aria-labelledby="care-finder-title">
+            <h2 id="care-finder-title">{t("home.finder")}</h2>
+            {serviceGroups[0].services.map(([Icon, href, label, description]) => (
+              <ServiceLink key={href} href={href} prefetch={false}
+                whileHover={{ y: -3 }} whileFocus={{ y: -3 }} whileTap={{ scale: 0.98 }} transition={serviceSpring}>
+                <span className="finder-icon"><Icon size={23} strokeWidth={1.6} aria-hidden="true" /></span>
+                <span><strong>{t(label)}</strong>{description !== label && <small>{t(description)}</small>}</span>
+                <ArrowUpRight size={18} aria-hidden="true" />
+              </ServiceLink>
+            ))}
           </nav>
         </div>
-      </header>
+      </section>
+      <section className="care-workspace site-container" id="care-services" aria-labelledby="workspace-title">
+        <div className="care-workspace-heading">
+          <h2 id="workspace-title">{t("home.manage")}</h2>
+          <a href="#record-setup" className="home-text-link">{t("home.setup")} <ArrowDown size={15} aria-hidden="true" /></a>
+        </div>
+        <div className="care-tools">
+          {serviceGroups[1].services.map(([Icon, href, label, description]) => (
+            <ServiceLink key={href} href={href} prefetch={false}
+                whileHover={{ y: -3 }} whileFocus={{ y: -3 }} whileTap={{ scale: 0.98 }} transition={serviceSpring}>
+              <Icon aria-hidden="true" size={26} strokeWidth={1.5} />
+              <strong>{t(label)}</strong>{description !== label && <small>{t(description)}</small>}
+              <ArrowUpRight aria-hidden="true" size={18} />
+            </ServiceLink>
+          ))}
+        </div>
+      </section>
 
-      <main className="mx-auto max-w-7xl px-4 py-10 space-y-10">
-        <section className="grid gap-8 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+      <section className="home-setup" aria-labelledby="record-setup">
+        <div className="site-container wrap home-setup-grid">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
-              Accessible Digital Healthcare Network · India
-            </p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-              Unified Care Records, Live Hospital Beds &amp; Instant Care Wallet
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-              Manage your ABDM / ABHA records with Aadhaar &amp; Face verification, book accessible beds,
-              settle bills across any hospital with Razorpay, and unlock verified government health schemes.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/patient"
-                className="inline-flex min-h-[44px] items-center rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-900"
-              >
-                Open Patient Health Hub
-              </Link>
-              <Link
-                href="/beds"
-                className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-              >
-                Check Live Beds
-              </Link>
-              <Link
-                href="/billing"
-                className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-              >
-                Settle Hospital Bill
-              </Link>
-            </div>
+            <h2 id="record-setup" ref={setupHeading} tabIndex={-1} className="home-section-title">Set up your record workspace</h2>
+            <p>Create a record identity as an individual or as an organization that issues health records.</p>
+            <figure className="wallet-stage">
+              <figcaption>{t("home.sample")}</figcaption>
+              <div className="wallet-stage-window">
+                <div className="wallet-stage-title"><Receipt size={20} aria-hidden="true" />{t("nav.billing")}</div>
+                <div className="wallet-stage-row"><span>{t("wallet.status.paid")}</span><strong>{formatCurrency(850)}</strong></div>
+                <div className="wallet-stage-row"><span>{t("wallet.status.pending")}</span><strong>{formatCurrency(250)}</strong></div>
+              </div>
+            </figure>
+            <Link href="/dashboard" className="home-text-link">Open the record dashboard</Link>
           </div>
-
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-teal-900">
-                Web5 DID Health Vault Onboarding
-              </span>
-              {step > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStep(0)}
-                  className="text-xs font-semibold text-slate-600 hover:underline"
-                >
-                  Start Over
-                </button>
-              )}
-            </div>
-            {step === 0 && <SelectType setType={setType} setStep={setStep} embedded />}
-            {step === 1 && (
-              <EnterDetails type={type} setDetails={setDetails} setStep={setStep} embedded />
-            )}
-            {step === 2 && (
-              <CreateDid name={details.name} year={details.year} userType={type} embedded />
-            )}
+          <div className="home-setup-panel">
+            {step === 0 && <SelectType onSelect={selectRole} />}
+            {step === 1 && <EnterDetails type={type} details={details} setDetails={setDetails} setStep={changeStep} />}
+            {step === 2 && <CreateDid {...details} userType={type} onBack={() => changeStep(1)} />}
           </div>
-        </section>
-
-        <section aria-label="Healthcare Services">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold tracking-tight text-slate-950">Healthcare Platform Modules</h2>
-            <Link href="/dashboard" className="text-xs font-bold text-teal-800 hover:underline">
-              Open DID Vault Dashboard →
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {MODULES.map(({ href, title, desc, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group rounded-xl border border-slate-200 bg-white p-5 transition hover:border-teal-400"
-              >
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 text-teal-800">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <h3 className="mt-3 text-base font-bold text-slate-950 group-hover:text-teal-900">{title}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{desc}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </main>
-    </div>
+        </div>
+      </section>
+    </MotionConfig>
   );
 }

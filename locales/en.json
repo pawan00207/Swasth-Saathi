@@ -25,7 +25,10 @@
     "machineTranslated": "Machine-assisted translation, please report errors.",
     "suggestCorrection": "Suggest correction",
     "correctionSubmitted": "Thank you! Your translation suggestion has been recorded.",
-    "englishOriginal": "English original"
+    "englishOriginal": "English original",
+    "serviceSearch": "Find a service",
+    "noServices": "No matching services",
+    "dashboard": "Record dashboard"
   },
   "wallet": {
     "title": "Care Wallet",
@@ -144,5 +147,22 @@
     "invalidPhone": "Enter a valid WhatsApp number with country code (e.g. +919876543210).",
     "signInRequired": "Please sign in to continue.",
     "network": "Network error. Please check your connection and try again."
+  },
+  "home": {
+    "find": "Find care.",
+    "visit": "Plan your visit.",
+    "intro": "Check support schemes, explore hospitals, and find a doctor for your next visit.",
+    "open": "Open my medical records",
+    "finder": "What do you need?",
+    "schemes": "Check government scheme eligibility",
+    "route": "Plan an accessible hospital route",
+    "beds": "Browse beds and accessibility details",
+    "consult": "Explore video consultations",
+    "reports": "Keep reports ready to share",
+    "billing": "Review bills and receipts",
+    "appointments": "Manage your appointments",
+    "manage": "Manage your care",
+    "setup": "Set up records",
+    "sample": "Sample care wallet"
   }
 }

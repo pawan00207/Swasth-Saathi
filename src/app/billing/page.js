@@ -620,7 +620,7 @@ export default function BillingPage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold text-teal-900">
+          <h1 className="integrated-service-title flex items-center gap-2 text-3xl font-bold text-teal-900">
             <Wallet className="h-7 w-7" aria-hidden="true" />
             <span>{t("wallet.title")}</span>
           </h1>

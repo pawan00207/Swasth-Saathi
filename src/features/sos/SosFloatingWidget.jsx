@@ -229,7 +229,7 @@ export default function SosFloatingWidget() {
         type="button"
         onClick={openSosModal}
         aria-label={t("sos.buttonLabel")}
-        className="fixed bottom-5 left-5 z-40 flex min-h-[52px] items-center gap-2 rounded-full border-2 border-white bg-red-700 px-5 py-3 text-base font-extrabold text-white shadow-xl hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-400"
+        className="site-utility-action fixed bottom-5 left-5 z-40 flex min-h-11 items-center gap-2 rounded-lg border border-white bg-red-800 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-red-900"
       >
         <ShieldAlert className="h-5 w-5" aria-hidden="true" />
         <span>SOS</span>

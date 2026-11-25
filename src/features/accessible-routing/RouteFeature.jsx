@@ -199,7 +199,7 @@ export default function RouteFeature() {
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-teal-900">Accessible Hospital Routing</h1>
+          <h1 className="integrated-service-title text-3xl font-bold text-teal-900">Accessible Hospital Routing</h1>
           <p className="mt-2 text-sm text-slate-700">Use route estimates only as a travel aid. For emergencies, call 108 or 112.</p>
         </div>
         <button

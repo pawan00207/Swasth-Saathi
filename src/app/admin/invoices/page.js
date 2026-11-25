@@ -235,7 +235,7 @@ export default function InvoiceAdminPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-3xl font-bold text-teal-900">Invoice administration (Care Wallet)</h1>
       <p className="mt-2 text-slate-600">
         Create itemized invoices with clinical 0% GST defaults (or admin override) and review live payment settlement status.
@@ -384,6 +384,6 @@ export default function InvoiceAdminPage() {
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

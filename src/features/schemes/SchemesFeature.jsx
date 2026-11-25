@@ -120,7 +120,7 @@ export default function SchemesFeature() {
           <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
             Verified Entitlements · {source === "verified-directory" ? "PM-JAY / MyScheme / DePwD" : source}
           </p>
-          <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+          <h1 className="integrated-service-title mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
             <Landmark className="h-7 w-7 text-teal-800" aria-hidden="true" />
             <span>Government Schemes &amp; Subsidies</span>
           </h1>
