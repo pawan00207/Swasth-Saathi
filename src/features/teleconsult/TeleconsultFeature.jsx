@@ -18,10 +18,11 @@ function loadRazorpayCheckout() {
 }
 
 function mapDoctor(doctor) {
+  const slots = doctor.availabilitySlots ?? doctor.availability_slots ?? doctor.availability;
   return {
     ...doctor,
     specialization: doctor.speciality || doctor.specialization,
-    availability: doctor.availability_slots || doctor.availability || [],
+    availability: Array.isArray(slots) ? slots.filter((slot) => typeof slot === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(slot)) : [],
     modes: doctor.modes || ["Video", "Audio", "Chat"],
     wheelchairClinic: doctor.wheelchairClinic ?? false,
   };
@@ -36,6 +37,7 @@ export default function TeleconsultFeature() {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [appointment, setAppointment] = useState(null);
+  const [privateRoomsConfigured, setPrivateRoomsConfigured] = useState(false);
   const [roomUrl, setRoomUrl] = useState("");
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [booking, setBooking] = useState(false);
@@ -50,6 +52,10 @@ export default function TeleconsultFeature() {
     ensureSupabaseBrowser().then((client) => {
       if (client) setSupabase(client);
     });
+    fetch("/api/teleconsult/room-token", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((config) => setPrivateRoomsConfigured(Boolean(config?.privateRoomsConfigured)))
+      .catch(() => {});
     fetch("/api/public-config", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((config) => setRazorpayConfigured(Boolean(config?.razorpayConfigured)))
@@ -112,8 +118,9 @@ export default function TeleconsultFeature() {
 
   async function book(event) {
     event.preventDefault();
-    if (!date || !time || !name) {
-      setMessage("Enter patient name, date and time.");
+    const startsAt = new Date(`${date}T${time}:00`);
+    if (!date || !availableSlots.includes(time) || !name.trim() || !(startsAt > new Date())) {
+      setMessage("Enter the patient name and choose a future time slot.");
       return;
     }
     setBooking(true);
@@ -127,12 +134,13 @@ export default function TeleconsultFeature() {
           body: JSON.stringify({
             patientName: name,
             doctorId: selected.id,
-            startsAt: new Date(`${date}T${time}:00`).toISOString(),
+            startsAt: startsAt.toISOString(),
             mode: mode.toLowerCase(),
           }),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Appointment booking failed.");
+        setRoomUrl("");
         setAppointment({
           ...result.appointment,
           doctor: selected.name,
@@ -153,15 +161,16 @@ export default function TeleconsultFeature() {
           time,
           mode,
           consultationFee: Number(selected.fee || 0),
-          status: "Confirmed",
+          status: "Saved locally",
           localOnly: true,
           room_name: `SwasthSaathi-${crypto.randomUUID()}`,
           createdAt: new Date().toISOString(),
         };
         const bookings = JSON.parse(localStorage.getItem("healthx_appointments") || "[]");
         localStorage.setItem("healthx_appointments", JSON.stringify([bookingData, ...bookings]));
+        setRoomUrl("");
         setAppointment(bookingData);
-        setMessage(`Appointment confirmed: ${id}.`);
+        setMessage(`Saved on this device. Sign in to book a shared appointment.`);
       }
     } catch (error) {
       console.error("Appointment booking failed", error);
@@ -173,23 +182,8 @@ export default function TeleconsultFeature() {
 
   async function joinRoom() {
     try {
-      if (appointment?.localOnly || !supabase) {
-        let jaasUrl = null;
-        try {
-          const configRes = await fetch("/api/teleconsult/room-token", { cache: "no-store" });
-          if (configRes.ok) {
-            const config = await configRes.json();
-            if (config?.appId && config?.roomToken) {
-              jaasUrl = `https://8x8.vc/${encodeURIComponent(config.appId)}/${encodeURIComponent(appointment.room_name)}?jwt=${encodeURIComponent(config.roomToken)}`;
-            }
-          }
-        } catch {
-          jaasUrl = null;
-        }
-        setRoomUrl(
-          jaasUrl || `https://meet.jit.si/${encodeURIComponent(appointment.room_name)}`,
-        );
-        return;
+      if (!appointment || appointment.localOnly || !supabase) {
+        throw new Error("Sign in and book online to join a private 8x8 consultation.");
       }
       const { data } = await supabase.auth.getSession();
       const response = await fetch("/api/teleconsult/room-token", {
@@ -266,7 +260,9 @@ export default function TeleconsultFeature() {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const availableSlots = selected.availability.filter((slot) => !date || new Date(`${date}T${slot}:00`) > now);
   const specialities = [...new Set(doctors.map((doctor) => doctor.specialization).filter(Boolean))];
   const languages = [...new Set(doctors.flatMap((doctor) => doctor.languages || []))].sort();
   const appointmentFee = Number(appointment?.consultationFee ?? selected.fee ?? 0);
@@ -278,9 +274,7 @@ export default function TeleconsultFeature() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <h1 className="integrated-service-title text-3xl font-bold text-teal-900">Teleconsultation</h1>
       <p className="mt-2 rounded border border-teal-300 bg-teal-50 p-3 text-teal-950">
-        {supabase
-          ? "NMC-verified doctor directory connected. Sign in for cloud-synced consultations and private JaaS video rooms."
-          : "NMC-verified doctor directory active with instant Jitsi video room launch."}
+        Sign in to book online. Consultations use private 8x8 Jitsi rooms.
         {" "}This service is not emergency triage or a substitute for medical advice.
       </p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -302,7 +296,7 @@ export default function TeleconsultFeature() {
               {doctor.wheelchairClinic && <span className="rounded bg-green-100 px-2 py-1 text-xs">Wheelchair-friendly clinic</span>}
               <span className="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-900">NMC Verified</span>
             </div>
-            <button type="button" onClick={() => { setSelected(doctor); setTime(""); }} className="mt-4 rounded border border-teal-800 px-3 py-2 text-sm">Choose doctor</button>
+            <button type="button" onClick={() => { setSelected(doctor); setTime(""); setMode(doctor.modes[0]?.toLowerCase() || "video"); }} className="mt-4 rounded border border-teal-800 px-3 py-2 text-sm">Choose doctor</button>
           </article>)}
           {!loadingDoctors && visibleDoctors.length === 0 && <p role="status">No doctors match these filters.</p>}
           </div>
@@ -311,22 +305,20 @@ export default function TeleconsultFeature() {
           <h2 className="text-xl font-bold">Book with {selected.name}</h2>
           <form onSubmit={book} className="mt-4 space-y-3">
             <label className="block">Patient name<input required autoComplete="name" className="mt-1 w-full rounded border px-3 py-2" value={name} onChange={(event) => setName(event.target.value)} /></label>
-            <label className="block">Date<input required min={today} type="date" className="mt-1 w-full rounded border px-3 py-2" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-            <fieldset><legend>Time slot</legend><div className="mt-2 flex flex-wrap gap-2">{selected.availability.map((slot) => <button type="button" key={slot} aria-pressed={time === slot} onClick={() => setTime(slot)} className={`rounded border px-3 py-2 ${time === slot ? "bg-teal-800 text-white" : "bg-white"}`}>{slot}</button>)}</div></fieldset>
+            <label className="block">Date<input required min={today} type="date" className="mt-1 w-full rounded border px-3 py-2" value={date} onChange={(event) => { setDate(event.target.value); setTime(""); }} /></label>
+            <fieldset><legend>Time slot</legend><div className="mt-2 flex flex-wrap gap-2">{availableSlots.map((slot) => <button type="button" key={slot} aria-pressed={time === slot} onClick={() => setTime(slot)} className={`rounded border px-3 py-2 ${time === slot ? "bg-teal-800 text-white" : "bg-white"}`}>{slot}</button>)}</div>{!availableSlots.length && <p role="status" className="text-sm text-slate-600">No available times. Try another date or doctor.</p>}</fieldset>
             <label className="block">Mode<select className="mt-1 w-full rounded border px-3 py-2" value={mode} onChange={(event) => setMode(event.target.value)}>{selected.modes.map((item) => <option key={item} value={item.toLowerCase()}>{item}</option>)}</select></label>
-            <button disabled={booking || loadingDoctors} className="w-full rounded bg-teal-800 px-4 py-2 text-white disabled:opacity-60">{booking ? "Booking..." : "Book appointment"}</button>
+            <button disabled={booking || loadingDoctors || !availableSlots.includes(time)} className="w-full rounded bg-teal-800 px-4 py-2 text-white disabled:opacity-60">{booking ? "Booking..." : "Book appointment"}</button>
           </form>
           {message && <p role="status" className="mt-4 rounded bg-green-50 p-3 text-sm">{message}</p>}
-          {appointment && <section className="mt-5 border-t pt-4"><div className="flex items-center justify-between gap-2"><h3 className="font-bold">Appointment details</h3>{!appointment.localOnly && <LiveIndicator connected={realtimeConnected} />}</div><p className="text-sm">{appointment.doctor} · {new Date(appointment.starts_at || `${appointment.date}T${appointment.time}`).toLocaleString()} · Status: {appointment.status}</p>{appointmentFee > 0 && (appointment.localOnly ? <p className="mt-3 text-sm text-slate-600">Sign in and book a cloud appointment to pay the consultation fee securely.</p> : razorpayConfigured ? <button type="button" disabled={paymentBusy} onClick={payConsultationFee} className="mt-3 rounded border border-teal-800 px-3 py-2 font-semibold text-teal-900 disabled:opacity-60">{paymentBusy ? "Starting payment..." : `Pay consultation fee (₹${appointmentFee})`}</button> : <p role="status" className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Razorpay checkout is not configured. Add <code>RAZORPAY_KEY_ID</code> and <code>RAZORPAY_KEY_SECRET</code> to server-side <code>.env.local</code>, then restart the app.</p>)}<button onClick={joinRoom} className="mt-3 rounded bg-teal-800 px-3 py-2 text-white">Join consultation</button></section>}
+          {appointment && <section className="mt-5 border-t pt-4"><div className="flex items-center justify-between gap-2"><h3 className="font-bold">Appointment details</h3>{!appointment.localOnly && <LiveIndicator connected={realtimeConnected} />}</div><p className="text-sm">{appointment.doctor} · {new Date(appointment.starts_at || `${appointment.date}T${appointment.time}`).toLocaleString()} · Status: {appointment.status}</p>{appointmentFee > 0 && (appointment.localOnly ? <p className="mt-3 text-sm text-slate-600">Sign in and book a cloud appointment to pay the consultation fee securely.</p> : razorpayConfigured ? <button type="button" disabled={paymentBusy} onClick={payConsultationFee} className="mt-3 rounded border border-teal-800 px-3 py-2 font-semibold text-teal-900 disabled:opacity-60">{paymentBusy ? "Starting payment..." : `Pay consultation fee (₹${appointmentFee})`}</button> : <p role="status" className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Razorpay checkout is not configured. Add <code>RAZORPAY_KEY_ID</code> and <code>RAZORPAY_KEY_SECRET</code> to server-side <code>.env.local</code>, then restart the app.</p>)}{appointment.localOnly ? <p className="mt-3 text-sm">Sign in and book online to join.</p> : privateRoomsConfigured ? <button onClick={joinRoom} disabled={appointment.status === "cancelled"} className="mt-3 rounded bg-teal-800 px-3 py-2 text-white disabled:opacity-60">Join consultation</button> : <p role="status" className="mt-3 text-sm">Private video is unavailable until 8x8 Jitsi is configured.</p>}</section>}
         </aside>
       </div>
       {roomUrl && (
         <section ref={roomSectionRef} className="mt-6 rounded-lg border bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-bold">
-              {appointment?.localOnly
-                ? "Encrypted Teleconsultation Room"
-                : "Private appointment room"}
+              Private 8x8 appointment room
             </h2>
             <a
               href={roomUrl}
